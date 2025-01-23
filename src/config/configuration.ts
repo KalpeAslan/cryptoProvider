@@ -11,7 +11,8 @@ export default (): AppConfig => ({
   },
   networks: {
     [NetworkType.POLYGON]: {
-      rpc: (process.env.POLYGON_RPC as string) || 'https://polygon-rpc.com',
+      rpc:
+        (process.env.POLYGON_RPC as string) || 'https://polygon.llamarpc.com',
       chainId: 137,
     },
     [NetworkType.MUMBAI]: {

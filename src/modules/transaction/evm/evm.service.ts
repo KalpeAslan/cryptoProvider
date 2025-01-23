@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { NetworkType } from '../../shared/types/network.types';
 import { TransactionParams } from '../../shared/types/transaction.types';
@@ -16,6 +16,7 @@ import { EvmGasComputingService } from './evm-gas-computing.service';
 @Injectable()
 export class EvmService {
   private readonly providers: Map<NetworkType, ethers.JsonRpcProvider>;
+  private readonly logger = new Logger(EvmService.name);
 
   constructor(
     private readonly sharedConfig: SharedConfig,
@@ -32,18 +33,22 @@ export class EvmService {
         network as NetworkType,
         new ethers.JsonRpcProvider(config.rpc),
       );
+      this.logger.log(`Initialized provider for network: ${network}`);
     });
   }
 
   async sendTransaction(params: TransactionParams): Promise<TransactionResult> {
+    this.logger.log(`Processing transaction on network: ${params.network}`);
     const provider = this.providers.get(params.network);
     if (!provider) {
       throw new Error(`Provider not found for network ${params.network}`);
     }
 
     const wallet = new ethers.Wallet(params.privateKey, provider);
+    this.logger.log(`Wallet initialized for address: ${wallet.address}`);
 
     if (params.tokenAddress) {
+      this.logger.log(`Initiating token transfer to: ${params.to}`);
       return this.sendTokenTransaction({
         wallet,
         to: params.to,
@@ -55,6 +60,7 @@ export class EvmService {
       });
     }
 
+    this.logger.log(`Initiating native transfer to: ${params.to}`);
     return this.sendNativeTransaction({
       wallet,
       to: params.to,
@@ -71,6 +77,7 @@ export class EvmService {
     const nonce = await params.provider.getTransactionCount(
       params.wallet.address,
     );
+    this.logger.log(`Got nonce for native transaction: ${nonce}`);
 
     const { gasLimit, gasPrice } =
       await this.evmGasComputingService.computeOptimalGas(
@@ -81,6 +88,9 @@ export class EvmService {
         undefined,
         params.gas,
       );
+    this.logger.log(
+      `Computed gas parameters - limit: ${gasLimit}, price: ${gasPrice}`,
+    );
 
     const tx: EthersTransaction = await params.wallet.sendTransaction({
       to: params.to,
@@ -89,11 +99,15 @@ export class EvmService {
       gasPrice,
       gasLimit,
     });
+    this.logger.log(`Native transaction sent with hash: ${tx.hash}`);
 
     const receipt: EthersTransactionReceipt | null = await tx.wait();
     if (!receipt) {
       throw new Error('Transaction failed');
     }
+    this.logger.log(
+      `Native transaction confirmed in block: ${receipt.blockNumber}`,
+    );
 
     return this.formatTransactionResult(tx, params.to);
   }
@@ -101,6 +115,7 @@ export class EvmService {
   private async sendTokenTransaction(
     params: TokenTransactionParams,
   ): Promise<TransactionResult> {
+    this.logger.log(`Initializing token contract at: ${params.tokenAddress}`);
     const contract = new ethers.Contract(
       params.tokenAddress,
       ERC20_TRANSFER_ABI,
@@ -110,6 +125,7 @@ export class EvmService {
     const nonce = await params.provider.getTransactionCount(
       params.wallet.address,
     );
+    this.logger.log(`Got nonce for token transaction: ${nonce}`);
 
     const { gasLimit, gasPrice } =
       await this.evmGasComputingService.computeOptimalGas(
@@ -120,6 +136,9 @@ export class EvmService {
         params.tokenAddress,
         params.gas,
       );
+    this.logger.log(
+      `Computed gas parameters - limit: ${gasLimit}, price: ${gasPrice}`,
+    );
 
     const tx: EthersTransaction = (await contract.transfer(
       params.to,
@@ -130,11 +149,15 @@ export class EvmService {
         gasLimit,
       },
     )) as EthersTransaction;
+    this.logger.log(`Token transaction sent with hash: ${tx.hash}`);
 
     const receipt: EthersTransactionReceipt | null = await tx.wait();
     if (!receipt) {
       throw new Error('Transaction failed');
     }
+    this.logger.log(
+      `Token transaction confirmed in block: ${receipt.blockNumber}`,
+    );
 
     return this.formatTransactionResult(tx, params.tokenAddress, params.amount);
   }

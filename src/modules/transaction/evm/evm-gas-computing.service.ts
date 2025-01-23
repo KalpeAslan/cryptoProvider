@@ -1,19 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { NetworkType } from '../../shared/types/network.types';
 import { SharedConfig } from '../../shared/config/shared.config';
 
 @Injectable()
 export class EvmGasComputingService {
+  private readonly logger = new Logger(EvmGasComputingService.name);
+
   constructor(private readonly SharedConfig: SharedConfig) {}
 
   private getProvider(network: NetworkType): ethers.JsonRpcProvider {
+    this.logger.log(`Creating provider for network: ${network}`);
     return new ethers.JsonRpcProvider(this.SharedConfig.networks[network].rpc);
   }
 
   async estimateGasPrice(network: NetworkType): Promise<bigint> {
+    this.logger.log(`Estimating gas price for network: ${network}`);
     const provider = this.getProvider(network);
-    return await provider.getFeeData().then((fee) => fee.gasPrice ?? 0n);
+    const gasPrice = await provider
+      .getFeeData()
+      .then((fee) => fee.gasPrice ?? 0n);
+    this.logger.log(`Estimated gas price: ${gasPrice}`);
+    return gasPrice;
   }
 
   async estimateGasLimit(
@@ -23,31 +31,37 @@ export class EvmGasComputingService {
     amount: string,
     tokenAddress?: string,
   ): Promise<bigint> {
+    this.logger.log(
+      `Estimating gas limit for ${tokenAddress ? 'token' : 'native'} transfer on network: ${network}`,
+    );
     const provider = this.getProvider(network);
 
-    // For native token transfers
+    let gasLimit: bigint;
     if (!tokenAddress) {
       const tx = {
         from,
         to,
         value: amount,
       };
-      return await provider.estimateGas(tx);
+      gasLimit = await provider.estimateGas(tx);
+      this.logger.log(`Estimated native transfer gas limit: ${gasLimit}`);
+    } else {
+      const erc20Interface = new ethers.Interface([
+        'function transfer(address to, uint256 amount)',
+      ]);
+      const data = erc20Interface.encodeFunctionData('transfer', [to, amount]);
+
+      const tx = {
+        from,
+        to: tokenAddress,
+        data,
+      };
+
+      gasLimit = await provider.estimateGas(tx);
+      this.logger.log(`Estimated token transfer gas limit: ${gasLimit}`);
     }
 
-    // For ERC20 transfers
-    const erc20Interface = new ethers.Interface([
-      'function transfer(address to, uint256 amount)',
-    ]);
-    const data = erc20Interface.encodeFunctionData('transfer', [to, amount]);
-
-    const tx = {
-      from,
-      to: tokenAddress,
-      data,
-    };
-
-    return await provider.estimateGas(tx);
+    return gasLimit;
   }
 
   async computeOptimalGas(
@@ -58,15 +72,20 @@ export class EvmGasComputingService {
     tokenAddress?: string,
     userSpecifiedGas?: number,
   ): Promise<{ gasLimit: bigint; gasPrice: bigint }> {
+    this.logger.log(`Computing optimal gas parameters for network: ${network}`);
+
     const [estimatedGasLimit, currentGasPrice] = await Promise.all([
       this.estimateGasLimit(network, from, to, amount, tokenAddress),
       this.estimateGasPrice(network),
     ]);
 
-    // Add 20% buffer to estimated gas limit for safety
     const gasLimit = userSpecifiedGas
       ? BigInt(userSpecifiedGas)
       : (estimatedGasLimit * 120n) / 100n;
+
+    this.logger.log(
+      `Computed optimal gas - limit: ${gasLimit} (${userSpecifiedGas ? 'user specified' : 'estimated + 20% buffer'}), price: ${currentGasPrice}`,
+    );
 
     return {
       gasLimit,
