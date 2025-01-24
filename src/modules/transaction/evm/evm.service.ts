@@ -13,6 +13,11 @@ import {
 } from './types/evm.types';
 import { EvmGasComputingService } from './evm-gas-computing.service';
 
+const ERC20_ABI = [
+  'function decimals() view returns (uint8)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+];
+
 @Injectable()
 export class EvmService {
   private readonly providers: Map<NetworkType, ethers.JsonRpcProvider>;
@@ -49,10 +54,23 @@ export class EvmService {
 
     if (params.tokenAddress) {
       this.logger.log(`Initiating token transfer to: ${params.to}`);
+      const contract = new ethers.Contract(
+        params.tokenAddress,
+        ERC20_ABI,
+        provider,
+      );
+      const decimals = await contract.decimals();
+      this.logger.log(`Token decimals: ${decimals}`);
+
+      const amountInWei = ethers.parseUnits(params.amount, decimals);
+      this.logger.log(
+        `Converted token amount ${params.amount} to Wei: ${amountInWei}`,
+      );
+
       return this.sendTokenTransaction({
         wallet,
         to: params.to,
-        amount: params.amount,
+        amount: amountInWei,
         provider,
         tokenAddress: params.tokenAddress,
         gas: params.gas,
@@ -60,11 +78,16 @@ export class EvmService {
       });
     }
 
+    const amountInWei = ethers.parseUnits(params.amount, 18);
+    this.logger.log(
+      `Converted native amount ${params.amount} to Wei: ${amountInWei}`,
+    );
+
     this.logger.log(`Initiating native transfer to: ${params.to}`);
     return this.sendNativeTransaction({
       wallet,
       to: params.to,
-      amount: params.amount,
+      amount: amountInWei,
       provider,
       gas: params.gas,
       network: params.network,
@@ -84,7 +107,7 @@ export class EvmService {
         params.network,
         params.wallet.address,
         params.to,
-        params.amount,
+        params.amount.toString(),
         undefined,
         params.gas,
       );
@@ -115,63 +138,75 @@ export class EvmService {
   private async sendTokenTransaction(
     params: TokenTransactionParams,
   ): Promise<TransactionResult> {
-    this.logger.log(`Initializing token contract at: ${params.tokenAddress}`);
-    const contract = new ethers.Contract(
-      params.tokenAddress,
-      ERC20_TRANSFER_ABI,
-      params.wallet,
-    );
+    try {
+      this.logger.log(`Initializing token contract at: ${params.tokenAddress}`);
+      const contract = new ethers.Contract(
+        params.tokenAddress,
+        ERC20_TRANSFER_ABI,
+        params.wallet,
+      );
 
-    const nonce = await params.provider.getTransactionCount(
-      params.wallet.address,
-    );
-    this.logger.log(`Got nonce for token transaction: ${nonce}`);
-
-    const { gasLimit, gasPrice } =
-      await this.evmGasComputingService.computeOptimalGas(
-        params.network,
+      const nonce = await params.provider.getTransactionCount(
         params.wallet.address,
+      );
+      this.logger.log(`Got nonce for token transaction: ${nonce}`);
+
+      const { gasLimit, gasPrice } =
+        await this.evmGasComputingService.computeOptimalGas(
+          params.network,
+          params.wallet.address,
+          params.to,
+          params.amount.toString(),
+          params.tokenAddress,
+          params.gas,
+        );
+      this.logger.log(
+        `Computed gas parameters - limit: ${gasLimit}, price: ${gasPrice}`,
+      );
+
+      const tx: EthersTransaction = (await contract.transfer(
         params.to,
         params.amount,
-        params.tokenAddress,
-        params.gas,
+        {
+          nonce,
+          gasPrice,
+          gasLimit,
+        },
+      )) as EthersTransaction;
+      this.logger.log(`Token transaction sent with hash: ${tx.hash}`);
+
+      const receipt: EthersTransactionReceipt | null = await tx.wait();
+      if (!receipt) {
+        throw new Error('Transaction failed: Receipt is null');
+      }
+      this.logger.log(
+        `Token transaction confirmed in block: ${receipt.blockNumber}`,
       );
-    this.logger.log(
-      `Computed gas parameters - limit: ${gasLimit}, price: ${gasPrice}`,
-    );
 
-    const tx: EthersTransaction = (await contract.transfer(
-      params.to,
-      params.amount,
-      {
-        nonce,
-        gasPrice,
-        gasLimit,
-      },
-    )) as EthersTransaction;
-    this.logger.log(`Token transaction sent with hash: ${tx.hash}`);
-
-    const receipt: EthersTransactionReceipt | null = await tx.wait();
-    if (!receipt) {
-      throw new Error('Transaction failed');
+      return this.formatTransactionResult(
+        tx,
+        params.tokenAddress,
+        params.amount,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Token transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw error;
     }
-    this.logger.log(
-      `Token transaction confirmed in block: ${receipt.blockNumber}`,
-    );
-
-    return this.formatTransactionResult(tx, params.tokenAddress, params.amount);
   }
 
   private formatTransactionResult(
     tx: EthersTransaction,
     to: string,
-    value?: string,
+    value?: string | bigint,
   ): TransactionResult {
     return {
       hash: tx.hash,
       from: tx.from,
       to: tx.to ?? to,
-      value: value ?? tx.value.toString(),
+      value: (value ?? tx.value).toString(),
       nonce: tx.nonce,
       gasPrice: tx.gasPrice?.toString() ?? '0',
       data: tx.data,

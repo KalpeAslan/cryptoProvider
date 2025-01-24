@@ -7,6 +7,7 @@ import {
   ProcessTransactionJob,
   TransactionConfirmationJob,
 } from '../shared/types/transaction.types';
+import { Logger } from '@nestjs/common';
 
 type TransactionQueue = Queue<
   ProcessTransactionJob | TransactionConfirmationJob
@@ -14,6 +15,8 @@ type TransactionQueue = Queue<
 
 @Processor('transactions')
 export class TransactionProcessor {
+  private readonly logger = new Logger(TransactionProcessor.name);
+
   constructor(
     private readonly evmService: EvmService,
     private readonly transactionService: TransactionService,
@@ -25,6 +28,18 @@ export class TransactionProcessor {
       job.data;
 
     try {
+      // Get transaction info to check status
+      const transaction =
+        await this.transactionService.getTransactionInfo(hash);
+
+      // Only process if status is PENDING_QUEUE
+      if (transaction.status !== TransactionStatus.PENDING_QUEUE) {
+        this.logger.warn(
+          `Skipping transaction ${hash} as status is ${transaction.status}`,
+        );
+        return;
+      }
+
       const tx = await this.evmService.sendTransaction({
         from,
         to,

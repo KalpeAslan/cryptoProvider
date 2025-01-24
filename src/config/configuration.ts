@@ -22,26 +22,23 @@ export default (): AppConfig => ({
       chainId: 80001,
     },
     [NetworkType.BINANCE]: {
-      rpc:
-        (process.env.BSC_RPC as string) || 'https://bsc-dataseed.binance.org',
+      rpc: (process.env.BSC_RPC as string) || 'https://binance.llamarpc.com',
       chainId: 56,
     },
     [NetworkType.BINANCE_TESTNET]: {
       rpc:
         (process.env.BSC_TESTNET_RPC as string) ||
-        'https://data-seed-prebsc-1-s1.binance.org:8545',
+        'https://bsc-testnet.public.blastapi.io',
       chainId: 97,
     },
     [NetworkType.ETHEREUM]: {
-      rpc:
-        (process.env.ETH_RPC as string) ||
-        'https://mainnet.infura.io/v3/YOUR-PROJECT-ID',
+      rpc: (process.env.ETH_RPC as string) || 'https://eth.llamarpc.com',
       chainId: 1,
     },
     [NetworkType.ETH_TESTNET]: {
       rpc:
         (process.env.ETH_TESTNET_RPC as string) ||
-        'https://sepolia.infura.io/v3/YOUR-PROJECT-ID',
+        'https://gateway.tenderly.co/public/sepolia',
       chainId: 11155111,
     },
   },
