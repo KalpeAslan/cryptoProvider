@@ -30,15 +30,32 @@ export interface TransactionData extends TransactionParams {
 
 export interface TransactionResponse
   extends Omit<TransactionData, 'privateKey'> {
-  hash: string;
+  id: string;
 }
 
 export interface TransactionConfirmationJob {
-  hash: string;
+  id: string;
   txHash: string;
   network: NetworkType;
 }
 
 export interface ProcessTransactionJob extends TransactionParams {
+  id: string;
+}
+
+export interface PendingTransactionCheckJob {
+  timestamp: number;
+}
+
+export interface Transaction {
   hash: string;
+  networkTxHash?: string;
+  status: TransactionStatus;
+  from: string;
+  to: string;
+  amount: string;
+  network: string;
+  tokenAddress?: string;
+  createdAt: number;
+  updatedAt: number;
 }

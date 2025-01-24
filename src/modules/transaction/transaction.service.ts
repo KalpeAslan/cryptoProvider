@@ -23,7 +23,7 @@ export class TransactionService {
   async createTransaction(
     createTransactionDto: CreateTransactionDto,
   ): Promise<TransactionResponse> {
-    const transactionHash = uuidv4();
+    const transactionId = uuidv4();
     const transactionData: TransactionData = {
       ...createTransactionDto,
       status: TransactionStatus.PENDING_QUEUE,
@@ -31,24 +31,24 @@ export class TransactionService {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.redis.set(`tx:${transactionHash}`, transactionData);
+    await this.redis.set(`tx:${transactionId}`, transactionData);
 
     const jobData: ProcessTransactionJob = {
       ...createTransactionDto,
-      hash: transactionHash,
+      id: transactionId,
     };
 
     await this.transactionsQueue.add('process', jobData);
 
     const response: TransactionResponse = {
-      hash: transactionHash,
+      id: transactionId,
       ...transactionData,
     };
     return response;
   }
 
-  async getTransactionInfo(hash: string): Promise<TransactionResponse> {
-    const transaction = await this.redis.get<TransactionData>(`tx:${hash}`);
+  async getTransactionInfo(id: string): Promise<TransactionResponse> {
+    const transaction = await this.redis.get<TransactionData>(`tx:${id}`);
     if (!transaction) {
       throw new Error('Transaction not found');
     }
@@ -63,16 +63,16 @@ export class TransactionService {
       }
     }
 
-    const response: TransactionResponse = { ...transaction, hash };
+    const response: TransactionResponse = { ...transaction, id };
     return response;
   }
 
   async updateTransactionStatus(
-    hash: string,
+    id: string,
     status: TransactionStatus,
     onChainTxHash?: string,
   ): Promise<TransactionResponse> {
-    const transaction = await this.redis.get<TransactionData>(`tx:${hash}`);
+    const transaction = await this.redis.get<TransactionData>(`tx:${id}`);
     if (!transaction) {
       throw new Error('Transaction not found');
     }
@@ -83,9 +83,15 @@ export class TransactionService {
       transaction.onChainTxHash = onChainTxHash;
     }
 
-    await this.redis.set(`tx:${hash}`, transaction);
+    await this.redis.set(`tx:${id}`, transaction);
 
-    const response: TransactionResponse = { ...transaction, hash };
+    const response: TransactionResponse = { ...transaction, id };
     return response;
+  }
+
+  async getPendingTransactions() {
+    return this.redis.getTransactionsByStatus(
+      TransactionStatus.PENDING_CONFIRMATION,
+    );
   }
 }

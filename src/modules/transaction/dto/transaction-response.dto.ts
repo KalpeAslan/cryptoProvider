@@ -6,8 +6,8 @@ import {
 } from '../../shared/types/transaction.types';
 
 export class TransactionResponseDto implements TransactionResponse {
-  @ApiProperty({ description: 'Transaction hash (UUID)' })
-  hash: string;
+  @ApiProperty({ description: 'Transaction ID (UUID)' })
+  id: string;
 
   @ApiProperty({ description: 'Sender address' })
   from: string;

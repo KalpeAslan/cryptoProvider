@@ -22,11 +22,11 @@ export class TransactionController {
     return this.transactionService.createTransaction(createTransactionDto);
   }
 
-  @Get(':hash')
-  @ApiOperation({ summary: 'Get transaction information by hash' })
+  @Get(':id')
+  @ApiOperation({ summary: 'Get transaction information by ID' })
   @ApiParam({
-    name: 'hash',
-    description: 'Transaction hash (UUID)',
+    name: 'id',
+    description: 'Transaction ID (UUID)',
     required: true,
   })
   @ApiResponse({
@@ -39,8 +39,8 @@ export class TransactionController {
     description: 'Transaction not found',
   })
   async getTransactionInfo(
-    @Param('hash') hash: string,
+    @Param('id') id: string,
   ): Promise<TransactionResponseDto> {
-    return this.transactionService.getTransactionInfo(hash);
+    return this.transactionService.getTransactionInfo(id);
   }
 }
