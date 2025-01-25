@@ -9,6 +9,9 @@ async function bootstrap() {
   const config = app.get(SharedConfig);
   const { host, port } = config.server;
 
+  console.log('host', host);
+  console.log('port', port);
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -27,7 +30,10 @@ async function bootstrap() {
     jsonDocumentUrl: 'swagger/json',
   });
 
-  await app.listen(port, host);
+  await app.listen(port, host).catch((e) => {
+    console.log('Listen Error', e.message);
+    console.log('Listen Error Desc', e);
+  });
   console.log(`Server started on: http://${host}:${port}`);
   console.log(`Swagger docs available at: http://${host}:${port}/api-docs`);
 }
