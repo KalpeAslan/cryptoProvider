@@ -39,7 +39,7 @@ export class TransactionResponseDto implements TransactionResponse {
   updatedAt: string;
 
   @ApiPropertyOptional({ description: 'On-chain transaction hash' })
-  onChainTxHash?: string;
+  hash?: string;
 
   @ApiPropertyOptional({ description: 'Additional on-chain transaction data' })
   onChainData?: any;

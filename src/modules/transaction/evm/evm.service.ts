@@ -7,8 +7,6 @@ import {
   NativeTransactionParams,
   TokenTransactionParams,
   TransactionResult,
-  EthersTransaction,
-  EthersTransactionReceipt,
 } from './types/evm.types';
 import { EvmGasComputingService } from './evm-gas-computing.service';
 import { EvmFactory } from './evm.factory';

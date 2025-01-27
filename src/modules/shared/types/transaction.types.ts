@@ -24,7 +24,7 @@ export interface TransactionData extends TransactionParams {
   status: TransactionStatus;
   createdAt: string;
   updatedAt: string;
-  onChainTxHash?: string;
+  hash?: string;
   onChainData?: any;
 }
 

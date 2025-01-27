@@ -117,29 +117,31 @@ export class TransactionProcessor implements OnModuleInit {
         await this.transactionService.getPendingTransactions();
 
       for (const tx of pendingTransactions) {
-        if (!tx?.networkTxHash) {
+        if (!tx?.hash) {
           continue;
         }
 
         try {
           const networkTx = await this.evmService.getTransaction(
-            tx.networkTxHash,
-            tx.network as NetworkType,
+            tx.hash,
+            tx.network,
           );
 
           if (networkTx) {
+            const transactionId = (tx as unknown as { id: string }).id;
             await this.transactionService.updateTransactionStatus(
-              tx.hash,
+              transactionId,
               TransactionStatus.CONFIRMED,
             );
 
             this.logger.log(
-              `Transaction ${tx.hash} confirmed and included in blockchain`,
+              `Transaction ${transactionId} confirmed and included in blockchain`,
             );
           }
         } catch (err) {
+          const transactionId = (tx as unknown as { id: string }).id;
           this.logger.error(
-            `Failed to check transaction ${tx.hash}: ${err instanceof Error ? err.message : 'Unknown error'}`,
+            `Failed to check transaction ${transactionId}: ${err instanceof Error ? err.message : 'Unknown error'}`,
           );
         }
       }

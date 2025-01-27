@@ -9,6 +9,7 @@ import { TransactionProcessor } from '../queue/transaction.processor';
 import { SharedConfigModule } from '../shared/config/shared-config.module';
 import { RedisRepositoryModule } from 'src/modules/shared/repository/redis-repository.module';
 import { EvmGasComputingService } from './evm/evm-gas-computing.service';
+import { TransactionsCacheAdapter } from './transactions-cache.adapter';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { EvmGasComputingService } from './evm/evm-gas-computing.service';
   ],
   controllers: [TransactionController],
   providers: [
+    TransactionsCacheAdapter,
     TransactionService,
     EvmGasComputingService,
     EvmService,
