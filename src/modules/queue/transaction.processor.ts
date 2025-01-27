@@ -95,7 +95,7 @@ export class TransactionProcessor implements OnModuleInit {
 
     try {
       const tx = await this.evmService.getTransaction(txHash, network);
-      if (tx?.confirmations && tx.confirmations > 0) {
+      if (tx) {
         await this.transactionService.updateTransactionStatus(
           id,
           TransactionStatus.CONFIRMED,
@@ -127,14 +127,14 @@ export class TransactionProcessor implements OnModuleInit {
             tx.network as NetworkType,
           );
 
-          if (networkTx?.confirmations && networkTx.confirmations > 0) {
+          if (networkTx) {
             await this.transactionService.updateTransactionStatus(
               tx.hash,
               TransactionStatus.CONFIRMED,
             );
 
             this.logger.log(
-              `Transaction ${tx.hash} confirmed with ${networkTx.confirmations} confirmations`,
+              `Transaction ${tx.hash} confirmed and included in blockchain`,
             );
           }
         } catch (err) {

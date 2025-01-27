@@ -37,7 +37,7 @@ export interface TransactionResult {
   gasPrice: string;
   data: string;
   chainId: number;
-  confirmations?: number;
+  gasUsed: string;
 }
 
 export type EthersTransaction = ethers.TransactionResponse;

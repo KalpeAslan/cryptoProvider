@@ -7,16 +7,11 @@ import {
   NativeTransactionParams,
   TokenTransactionParams,
   TransactionResult,
-  ERC20_TRANSFER_ABI,
   EthersTransaction,
   EthersTransactionReceipt,
 } from './types/evm.types';
 import { EvmGasComputingService } from './evm-gas-computing.service';
-
-const ERC20_ABI = [
-  'function decimals() view returns (uint8)',
-  'function transfer(address to, uint256 amount) returns (bool)',
-];
+import { EvmFactory } from './evm.factory';
 
 @Injectable()
 export class EvmService {
@@ -54,11 +49,7 @@ export class EvmService {
 
     if (params.tokenAddress) {
       this.logger.log(`Initiating token transfer to: ${params.to}`);
-      const contract = new ethers.Contract(
-        params.tokenAddress,
-        ERC20_ABI,
-        provider,
-      );
+      const contract = EvmFactory.createContract(params.tokenAddress, provider);
       const decimals = await contract.decimals();
       this.logger.log(`Token decimals: ${decimals}`);
 
@@ -115,16 +106,16 @@ export class EvmService {
       `Computed gas parameters - limit: ${gasLimit}, price: ${gasPrice}`,
     );
 
-    const tx: EthersTransaction = await params.wallet.sendTransaction({
-      to: params.to,
-      value: params.amount,
+    const txRequest = EvmFactory.createNativeTransactionRequest(
+      params,
       nonce,
-      gasPrice,
       gasLimit,
-    });
+      gasPrice,
+    );
+    const tx = await params.wallet.sendTransaction(txRequest);
     this.logger.log(`Native transaction sent with hash: ${tx.hash}`);
 
-    const receipt: EthersTransactionReceipt | null = await tx.wait();
+    const receipt = await tx.wait();
     if (!receipt) {
       throw new Error('Transaction failed');
     }
@@ -132,7 +123,7 @@ export class EvmService {
       `Native transaction confirmed in block: ${receipt.blockNumber}`,
     );
 
-    return this.formatTransactionResult(tx, params.to);
+    return EvmFactory.formatTransactionResult(tx, receipt, params.to);
   }
 
   private async sendTokenTransaction(
@@ -140,12 +131,6 @@ export class EvmService {
   ): Promise<TransactionResult> {
     try {
       this.logger.log(`Initializing token contract at: ${params.tokenAddress}`);
-      const contract = new ethers.Contract(
-        params.tokenAddress,
-        ERC20_TRANSFER_ABI,
-        params.wallet,
-      );
-
       const nonce = await params.provider.getTransactionCount(
         params.wallet.address,
       );
@@ -164,18 +149,17 @@ export class EvmService {
         `Computed gas parameters - limit: ${gasLimit}, price: ${gasPrice}`,
       );
 
-      const tx: EthersTransaction = (await contract.transfer(
-        params.to,
-        params.amount,
-        {
-          nonce,
-          gasPrice,
-          gasLimit,
-        },
-      )) as EthersTransaction;
+      const data = EvmFactory.createTokenTransferData(params.to, params.amount);
+      const tx = await params.wallet.sendTransaction({
+        to: params.tokenAddress,
+        data,
+        nonce,
+        gasPrice,
+        gasLimit,
+      });
       this.logger.log(`Token transaction sent with hash: ${tx.hash}`);
 
-      const receipt: EthersTransactionReceipt | null = await tx.wait();
+      const receipt = await tx.wait();
       if (!receipt) {
         throw new Error('Transaction failed: Receipt is null');
       }
@@ -183,8 +167,9 @@ export class EvmService {
         `Token transaction confirmed in block: ${receipt.blockNumber}`,
       );
 
-      return this.formatTransactionResult(
+      return EvmFactory.formatTransactionResult(
         tx,
+        receipt,
         params.tokenAddress,
         params.amount,
       );
@@ -195,23 +180,6 @@ export class EvmService {
       );
       throw error;
     }
-  }
-
-  private formatTransactionResult(
-    tx: EthersTransaction,
-    to: string,
-    value?: string | bigint,
-  ): TransactionResult {
-    return {
-      hash: tx.hash,
-      from: tx.from,
-      to: tx.to ?? to,
-      value: (value ?? tx.value).toString(),
-      nonce: tx.nonce,
-      gasPrice: tx.gasPrice?.toString() ?? '0',
-      data: tx.data,
-      chainId: Number(tx.chainId),
-    };
   }
 
   async getTransaction(
@@ -226,6 +194,7 @@ export class EvmService {
     const tx = await provider.getTransaction(txHash);
     if (!tx) return null;
 
-    return this.formatTransactionResult(tx, tx.to ?? '');
+    const receipt = await provider.getTransactionReceipt(txHash);
+    return EvmFactory.formatTransactionResult(tx, receipt, tx.to ?? '');
   }
 }
