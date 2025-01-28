@@ -12,7 +12,7 @@ export type EvmNetworkMap = Record<NetworkType, EvmNetworkConfig>;
 export interface NativeTransactionParams {
   wallet: ethers.Wallet;
   to: string;
-  amount: string;
+  amount: string | bigint;
   provider: ethers.JsonRpcProvider;
   gas?: number;
   network: NetworkType;
@@ -21,7 +21,7 @@ export interface NativeTransactionParams {
 export interface TokenTransactionParams {
   wallet: ethers.Wallet;
   to: string;
-  amount: string;
+  amount: string | bigint;
   provider: ethers.JsonRpcProvider;
   tokenAddress: string;
   gas?: number;

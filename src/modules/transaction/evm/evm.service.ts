@@ -46,10 +46,20 @@ export class EvmService {
     this.logger.log(`Wallet initialized for address: ${wallet.address}`);
 
     if (params.tokenAddress) {
+      this.logger.log(`Initiating token transfer to: ${params.to}`);
+      const contract = EvmFactory.createContract(params.tokenAddress, provider);
+      const decimals = await contract.decimals();
+      this.logger.log(`Token decimals: ${decimals}`);
+
+      const amountInWei = ethers.parseUnits(params.amount, decimals);
+      this.logger.log(
+        `Converted token amount ${params.amount} to Wei: ${amountInWei}`,
+      );
+
       return this.sendTokenTransaction({
         wallet,
         to: params.to,
-        amount: params.amount,
+        amount: amountInWei,
         provider,
         tokenAddress: params.tokenAddress,
         gas: params.gas,
@@ -57,10 +67,16 @@ export class EvmService {
       });
     }
 
+    const amountInWei = ethers.parseUnits(params.amount, 18);
+    this.logger.log(
+      `Converted native amount ${params.amount} to Wei: ${amountInWei}`,
+    );
+
+    this.logger.log(`Initiating native transfer to: ${params.to}`);
     return this.sendNativeTransaction({
       wallet,
       to: params.to,
-      amount: params.amount,
+      amount: amountInWei,
       provider,
       gas: params.gas,
       network: params.network,
@@ -70,12 +86,6 @@ export class EvmService {
   private async sendNativeTransaction(
     params: NativeTransactionParams,
   ): Promise<TransactionResult> {
-    const amountInWei = ethers.parseUnits(params.amount, 18);
-    this.logger.log(
-      `Converted native amount ${params.amount} to Wei: ${amountInWei}`,
-    );
-
-    this.logger.log(`Initiating native transfer to: ${params.to}`);
     const nonce = await params.provider.getTransactionCount(
       params.wallet.address,
     );
@@ -118,21 +128,6 @@ export class EvmService {
     params: TokenTransactionParams,
   ): Promise<TransactionResult> {
     try {
-      const provider = this.providers.get(params.network);
-      if (!provider) {
-        throw new Error(`Provider not found for network ${params.network}`);
-      }
-
-      this.logger.log(`Initiating token transfer to: ${params.to}`);
-      const contract = EvmFactory.createContract(params.tokenAddress, provider);
-      const decimals = await contract.decimals();
-      this.logger.log(`Token decimals: ${decimals}`);
-
-      const amountInWei = ethers.parseUnits(params.amount, decimals);
-      this.logger.log(
-        `Converted token amount ${params.amount} to Wei: ${amountInWei}`,
-      );
-
       this.logger.log(`Initializing token contract at: ${params.tokenAddress}`);
       const nonce = await params.provider.getTransactionCount(
         params.wallet.address,
