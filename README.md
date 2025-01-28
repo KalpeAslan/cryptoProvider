@@ -97,3 +97,97 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+# DeltaPlan Service
+
+## English
+
+### Prerequisites
+- Node.js v22
+- Docker and Docker Compose
+- Redis (for local development)
+
+### Local Development Setup
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Create `.env` file in the root directory with the following content:
+```env
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_URI=redis://localhost:6379
+
+SERVER_HOST=localhost
+SERVER_PORT=3030
+NODE_ENV=development
+```
+
+3. Start the development server:
+```bash
+npm run start:dev
+```
+
+The application will be available at `http://localhost:3030`
+
+### Docker Deployment
+
+1. Build and start the containers:
+```bash
+docker-compose up -d
+```
+
+2. To stop the containers:
+```bash
+docker-compose down
+```
+
+The application will be available at `http://localhost:3030`
+
+## Русский
+
+### Предварительные требования
+- Node.js версии 22
+- Docker и Docker Compose
+- Redis (для локальной разработки)
+
+### Настройка локальной разработки
+
+1. Установка зависимостей:
+```bash
+npm install
+```
+
+2. Создайте файл `.env` в корневой директории со следующим содержимым:
+```env
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_URI=redis://localhost:6379
+
+SERVER_HOST=localhost
+SERVER_PORT=3030
+NODE_ENV=development
+```
+
+3. Запуск сервера разработки:
+```bash
+npm run start:dev
+```
+
+Приложение будет доступно по адресу `http://localhost:3030`
+
+### Развертывание с помощью Docker
+
+1. Сборка и запуск контейнеров:
+```bash
+docker-compose up -d
+```
+
+2. Для остановки контейнеров:
+```bash
+docker-compose down
+```
+
+Приложение будет доступно по адресу `http://localhost:3030`
