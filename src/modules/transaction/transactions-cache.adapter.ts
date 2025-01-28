@@ -1,19 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { RedisRepository } from '../shared/repository/redis.repository';
 import {
   TransactionData,
-  TransactionResponse,
   TransactionStatus,
 } from '../shared/types/transaction.types';
 
-const TRANSACTION_TTL = 120; // 2 minutes in seconds
 const TRANSACTION_KEY_PREFIX = 'tx:';
 
 @Injectable()
 export class TransactionsCacheAdapter {
+  private readonly logger = new Logger(TransactionsCacheAdapter.name);
+
   constructor(private readonly redis: RedisRepository) {}
 
   async setTransaction(id: string, data: TransactionData): Promise<void> {
+    this.logger.log(`Setting transaction with id: ${id}`);
     await this.redis.set(`${TRANSACTION_KEY_PREFIX}${id}`, data);
   }
 
@@ -26,6 +27,7 @@ export class TransactionsCacheAdapter {
     status: TransactionStatus,
     hash?: string,
   ): Promise<TransactionData | null> {
+    this.logger.log(`Updating transaction status with id: ${id}`);
     const transaction = await this.getTransaction(id);
     if (!transaction) {
       return null;
@@ -45,6 +47,7 @@ export class TransactionsCacheAdapter {
   async getTransactionsByStatus(
     status: TransactionStatus,
   ): Promise<TransactionData[]> {
+    this.logger.log(`Getting transactions with status: ${status}`);
     const transactions = await this.redis.getTransactionsByStatus(status);
     return transactions.map((tx) => ({
       ...tx,
@@ -54,16 +57,8 @@ export class TransactionsCacheAdapter {
     })) as TransactionData[];
   }
 
-  async setTransactionWithTTL(
-    id: string,
-    response: TransactionResponse,
-  ): Promise<void> {
-    if (response.status === TransactionStatus.CONFIRMED) {
-      await this.redis.set(
-        `${TRANSACTION_KEY_PREFIX}${id}`,
-        response,
-        TRANSACTION_TTL,
-      );
-    }
+  async deleteTransaction(id: string): Promise<void> {
+    this.logger.log(`Deleting transaction with id: ${id}`);
+    await this.redis.delete(`${TRANSACTION_KEY_PREFIX}${id}`);
   }
 }

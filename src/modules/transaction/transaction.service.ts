@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { v4 as uuidv4 } from 'uuid';
@@ -47,10 +47,13 @@ export class TransactionService {
     return response;
   }
 
-  async getTransactionInfo(id: string): Promise<TransactionResponse> {
+  async getTransactionInfo(
+    id: string,
+    deleteAfter: boolean = false,
+  ): Promise<TransactionResponse> {
     const transaction = await this.transactionsCache.getTransaction(id);
     if (!transaction) {
-      throw new Error('Transaction not found');
+      throw new NotFoundException(`Transaction with id:${id} not found`);
     }
 
     if (transaction.hash && !transaction.onChainData) {
@@ -64,7 +67,9 @@ export class TransactionService {
     }
 
     const response: TransactionResponse = { ...transaction, id };
-    await this.transactionsCache.setTransactionWithTTL(id, response);
+    if (deleteAfter && transaction.status === TransactionStatus.CONFIRMED) {
+      await this.transactionsCache.deleteTransaction(id);
+    }
     return response;
   }
 
@@ -77,11 +82,10 @@ export class TransactionService {
       await this.transactionsCache.updateTransactionStatus(id, status, hash);
 
     if (!updatedTransaction) {
-      throw new Error('Transaction not found');
+      throw new NotFoundException(`Transaction with id:${id} not found`);
     }
 
     const response: TransactionResponse = { ...updatedTransaction, id };
-    await this.transactionsCache.setTransactionWithTTL(id, response);
     return response;
   }
 

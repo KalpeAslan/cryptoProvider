@@ -10,7 +10,6 @@ import {
 } from '../shared/types/transaction.types';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
-import { NetworkType } from '../shared/types/network.types';
 
 type TransactionQueue = Queue<
   | ProcessTransactionJob
@@ -49,7 +48,7 @@ export class TransactionProcessor implements OnModuleInit {
 
     try {
       // Get transaction info to check status
-      const transaction = await this.transactionService.getTransactionInfo(id);
+      const transaction = await this.transactionService.getTransactionInfo(id, false);
 
       // Only process if status is PENDING_QUEUE
       if (transaction.status !== TransactionStatus.PENDING_QUEUE) {
