@@ -11,7 +11,6 @@ import {
 import { EvmGasComputingService } from './evm-gas-computing.service';
 import { EvmFactory } from './evm.factory';
 import { CustomException } from '@/modules/shared/exceptions/custom-error.exception';
-import { CUSTOM_CODES } from '@/modules/shared/constants/custom-codes.constants';
 
 @Injectable()
 export class EvmService {
@@ -197,7 +196,9 @@ export class EvmService {
       });
       this.logger.log(`Token transaction sent with hash: ${tx.hash}`);
 
-      const receipt = await tx.wait();
+      const receipt = await tx.wait().catch((e) => {
+        this.logger.error(`Transaction failed: ${e.message}`);
+      });
       if (!receipt) {
         throw new Error('Transaction failed: Receipt is null');
       }

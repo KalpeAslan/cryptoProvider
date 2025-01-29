@@ -55,11 +55,9 @@ export class TransactionService {
     return response;
   }
 
-  async getTransactionInfo(
-    id: string,
-    deleteAfter: boolean = false,
-  ): Promise<TransactionResponseDto> {
+  async getTransactionInfo(id: string): Promise<TransactionResponseDto> {
     const transaction = await this.transactionsCache.getTransaction(id);
+
     if (!transaction) {
       throw new NotFoundException(`Transaction with id:${id} not found`);
     }
@@ -75,9 +73,18 @@ export class TransactionService {
     }
 
     const response: TransactionResponseDto = { ...transaction, id };
-    if (deleteAfter && transaction.status === TransactionStatus.CONFIRMED) {
+
+    this.logger.log(`transaction: ${JSON.stringify(transaction)}`);
+
+    const isPending =
+      transaction.status === TransactionStatus.PENDING_CONFIRMATION ||
+      transaction.status === TransactionStatus.PENDING_QUEUE;
+
+    this.logger.log(`isPending: ${isPending}`);
+    if (!isPending) {
       await this.transactionsCache.deleteTransaction(id);
     }
+
     return response;
   }
 
@@ -147,6 +154,7 @@ export class TransactionService {
           id,
           data: {
             status: TransactionStatus.FAILED,
+            message: error.message,
             code: error.code,
           },
         });

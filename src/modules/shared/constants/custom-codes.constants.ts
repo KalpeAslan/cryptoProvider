@@ -1,10 +1,14 @@
 import { CustomCode } from '../types/common.types';
 
-export const CUSTOM_CODES: Record<string, CustomCode> = {
+export const CUSTOM_CODES = {
   /** Successful operations */
   SUCCESS: { code: 2000, message: 'Operation successful' },
-  TRANSACTION_CONFIRMED: {
+  TRANSACTION_CREATED: {
     code: 2001,
+    message: 'Transaction created',
+  },
+  TRANSACTION_CONFIRMED: {
+    code: 2002,
     message: 'Transaction confirmed on blockchain',
   },
 

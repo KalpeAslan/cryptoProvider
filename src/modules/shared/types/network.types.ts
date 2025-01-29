@@ -4,7 +4,7 @@ export enum NetworkType {
   BINANCE = 'binance',
   BINANCE_TESTNET = 'binanceTestnet',
   ETHEREUM = 'ethereum',
-  ETH_TESTNET = 'ethTestnet',
+  ETH_TESTNET = 'sepolia',
 }
 
 export interface NetworkConfig {

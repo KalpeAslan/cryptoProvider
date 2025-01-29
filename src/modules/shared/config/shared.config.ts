@@ -61,7 +61,7 @@ export class SharedConfig implements AppConfig {
       [NetworkType.ETH_TESTNET]: {
         rpc: this.getEnvOrDefault(
           ENV.NETWORKS.ETH_TESTNET.RPC,
-          'https://sepolia.infura.io/v3/YOUR-PROJECT-ID',
+          'https://sepolia.gateway.tenderly.co',
         ),
         chainId: 11155111,
       },

@@ -41,6 +41,6 @@ export class TransactionController {
   async getTransactionInfo(
     @Param('id') id: string,
   ): Promise<TransactionResponseDto> {
-    return this.transactionService.getTransactionInfo(id, true);
+    return this.transactionService.getTransactionInfo(id);
   }
 }
