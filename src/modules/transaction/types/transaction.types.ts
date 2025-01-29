@@ -1,4 +1,5 @@
-import { NetworkType } from './network.types';
+import { CustomCode } from '../../shared/types/common.types';
+import { NetworkType } from '../../shared/types/network.types';
 
 export enum TransactionStatus {
   PENDING_QUEUE = 'PENDING_QUEUE',
@@ -20,7 +21,7 @@ export interface TransactionParams extends BaseTransactionData {
   privateKey: string;
 }
 
-export interface TransactionData extends TransactionParams {
+export interface TransactionData extends TransactionParams, CustomCode {
   status: TransactionStatus;
   createdAt: string;
   updatedAt: string;
@@ -29,7 +30,8 @@ export interface TransactionData extends TransactionParams {
 }
 
 export interface TransactionResponse
-  extends Omit<TransactionData, 'privateKey'> {
+  extends CustomCode,
+    Omit<TransactionData, 'privateKey'> {
   id: string;
 }
 

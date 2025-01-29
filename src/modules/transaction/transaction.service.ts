@@ -9,8 +9,9 @@ import {
   TransactionData,
   TransactionResponse,
   ProcessTransactionJob,
-} from '../shared/types/transaction.types';
+} from './types/transaction.types';
 import { TransactionsCacheAdapter } from './transactions-cache.adapter';
+import { CUSTOM_CODES } from '../shared/constants/custom-codes.constants';
 
 @Injectable()
 export class TransactionService {
@@ -29,6 +30,8 @@ export class TransactionService {
       status: TransactionStatus.PENDING_QUEUE,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      code: CUSTOM_CODES.TRANSACTION_CREATED.code,
+      message: CUSTOM_CODES.TRANSACTION_CREATED.message,
     };
 
     await this.transactionsCache.setTransaction(transactionId, transactionData);

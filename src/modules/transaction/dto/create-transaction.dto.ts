@@ -1,7 +1,7 @@
 import { IsString, IsOptional, IsEnum, IsNumber } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NetworkType } from '../../shared/types/network.types';
-import { BaseTransactionData } from '../../shared/types/transaction.types';
+import { BaseTransactionData } from '../types/transaction.types';
 
 export class CreateTransactionDto implements BaseTransactionData {
   @ApiProperty({ description: 'Sender address' })

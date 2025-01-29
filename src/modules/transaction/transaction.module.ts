@@ -5,7 +5,7 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { TransactionController } from './transaction.controller';
 import { TransactionService } from './transaction.service';
 import { EvmService } from './evm/evm.service';
-import { TransactionProcessor } from '../queue/transaction.processor';
+import { TransactionProcessor } from './queue/transaction.processor';
 import { SharedConfigModule } from '../shared/config/shared-config.module';
 import { RedisRepositoryModule } from 'src/modules/shared/repository/redis-repository.module';
 import { EvmGasComputingService } from './evm/evm-gas-computing.service';

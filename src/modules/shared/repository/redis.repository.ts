@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import * as zlib from 'zlib';
 import { RedisService as NestRedisService } from '@liaoliaots/nestjs-redis';
 import { Redis } from 'ioredis';
-import { TransactionStatus } from '../types/transaction.types';
-import { Transaction } from '../types/transaction.types';
+import { TransactionStatus } from '../../transaction/types/transaction.types';
+import { Transaction } from '../../transaction/types/transaction.types';
 
 const TRANSACTION_KEY = 'transactions';
 

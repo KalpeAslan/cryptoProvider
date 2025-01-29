@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { NetworkType } from '../../shared/types/network.types';
-import { TransactionParams } from '../../shared/types/transaction.types';
+import { TransactionParams } from '../types/transaction.types';
 import { SharedConfig } from '../../shared/config/shared.config';
 import {
   NativeTransactionParams,

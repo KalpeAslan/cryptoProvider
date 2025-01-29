@@ -3,7 +3,7 @@ import { RedisRepository } from '../shared/repository/redis.repository';
 import {
   TransactionData,
   TransactionStatus,
-} from '../shared/types/transaction.types';
+} from './types/transaction.types';
 
 const TRANSACTION_KEY_PREFIX = 'tx:';
 

@@ -1,9 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { NetworkType } from '../../shared/types/network.types';
+import { NetworkType, CUSTOM_CODES } from '../../shared';
 import {
-  TransactionStatus,
   TransactionResponse,
-} from '../../shared/types/transaction.types';
+  TransactionStatus,
+} from '../types/transaction.types';
 
 export class TransactionResponseDto implements TransactionResponse {
   @ApiProperty({ description: 'Transaction ID (UUID)' })
@@ -43,4 +43,13 @@ export class TransactionResponseDto implements TransactionResponse {
 
   @ApiPropertyOptional({ description: 'Additional on-chain transaction data' })
   onChainData?: any;
+
+  @ApiProperty({
+    enum: CUSTOM_CODES,
+    description: 'Custom code for the transaction',
+  })
+  code: number;
+
+  @ApiProperty({ description: 'Custom message for the transaction' })
+  message: string;
 }

@@ -1,13 +1,13 @@
 import { Process, Processor } from '@nestjs/bull';
 import { Job, Queue } from 'bull';
-import { EvmService } from '../transaction/evm/evm.service';
-import { TransactionService } from '../transaction/transaction.service';
+import { EvmService } from '../evm/evm.service';
+import { TransactionService } from '../transaction.service';
 import {
   TransactionStatus,
   ProcessTransactionJob,
   TransactionConfirmationJob,
   PendingTransactionCheckJob,
-} from '../shared/types/transaction.types';
+} from '../types/transaction.types';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 
@@ -48,7 +48,10 @@ export class TransactionProcessor implements OnModuleInit {
 
     try {
       // Get transaction info to check status
-      const transaction = await this.transactionService.getTransactionInfo(id, false);
+      const transaction = await this.transactionService.getTransactionInfo(
+        id,
+        false,
+      );
 
       // Only process if status is PENDING_QUEUE
       if (transaction.status !== TransactionStatus.PENDING_QUEUE) {
