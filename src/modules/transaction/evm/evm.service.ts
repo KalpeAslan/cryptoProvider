@@ -196,9 +196,7 @@ export class EvmService {
       });
       this.logger.log(`Token transaction sent with hash: ${tx.hash}`);
 
-      const receipt = await tx.wait().catch((e) => {
-        this.logger.error(`Transaction failed: ${e.message}`);
-      });
+      const receipt = await tx.wait();
       if (!receipt) {
         throw new Error('Transaction failed: Receipt is null');
       }
