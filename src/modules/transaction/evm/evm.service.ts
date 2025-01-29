@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
 import { NetworkType } from '../../shared/types/network.types';
-import { TransactionParams } from '../types/transaction.types';
+import { TransactionData } from '../types/transaction.types';
 import { SharedConfig } from '../../shared/config/shared.config';
 import {
   NativeTransactionParams,
@@ -10,6 +10,8 @@ import {
 } from './types/evm.types';
 import { EvmGasComputingService } from './evm-gas-computing.service';
 import { EvmFactory } from './evm.factory';
+import { CustomException } from '@/modules/shared/exceptions/custom-error.exception';
+import { CUSTOM_CODES } from '@/modules/shared/constants/custom-codes.constants';
 
 @Injectable()
 export class EvmService {
@@ -35,52 +37,90 @@ export class EvmService {
     });
   }
 
-  async sendTransaction(params: TransactionParams): Promise<TransactionResult> {
+  async sendTransaction(params: TransactionData): Promise<TransactionResult> {
     this.logger.log(`Processing transaction on network: ${params.network}`);
+
+    if (!params.network) {
+      throw new CustomException('INVALID_REQUEST');
+    }
+
     const provider = this.providers.get(params.network);
     if (!provider) {
-      throw new Error(`Provider not found for network ${params.network}`);
+      throw new CustomException('PROVIDER_NOT_FOUND');
+    }
+
+    if (!params.privateKey) {
+      throw new CustomException('UNAUTHORIZED');
+    }
+
+    if (!params.to || !ethers.isAddress(params.to)) {
+      throw new CustomException('INVALID_ADDRESS');
+    }
+
+    if (
+      !params.amount ||
+      isNaN(Number(params.amount)) ||
+      Number(params.amount) <= 0
+    ) {
+      throw new CustomException('INVALID_REQUEST');
     }
 
     const wallet = new ethers.Wallet(params.privateKey, provider);
     this.logger.log(`Wallet initialized for address: ${wallet.address}`);
 
     if (params.tokenAddress) {
+      if (!ethers.isAddress(params.tokenAddress)) {
+        throw new CustomException('INVALID_ADDRESS');
+      }
+
       this.logger.log(`Initiating token transfer to: ${params.to}`);
       const contract = EvmFactory.createContract(params.tokenAddress, provider);
-      const decimals = await contract.decimals();
-      this.logger.log(`Token decimals: ${decimals}`);
 
-      const amountInWei = ethers.parseUnits(params.amount, decimals);
+      try {
+        const decimals = await contract.decimals();
+        this.logger.log(`Token decimals: ${decimals}`);
+
+        const amountInWei = ethers.parseUnits(params.amount, decimals);
+        this.logger.log(
+          `Converted token amount ${params.amount} to Wei: ${amountInWei}`,
+        );
+
+        return this.sendTokenTransaction({
+          wallet,
+          to: params.to,
+          amount: amountInWei,
+          provider,
+          tokenAddress: params.tokenAddress,
+          gas: params.gas,
+          network: params.network,
+        });
+      } catch (error) {
+        this.logger.error(
+          `Token contract interaction failed: ${error.message}`,
+        );
+        throw new CustomException('CONTRACT_CALL_FAILED');
+      }
+    }
+
+    try {
+      const amountInWei = ethers.parseUnits(params.amount, 18);
       this.logger.log(
-        `Converted token amount ${params.amount} to Wei: ${amountInWei}`,
+        `Converted native amount ${params.amount} to Wei: ${amountInWei}`,
       );
 
-      return this.sendTokenTransaction({
+      this.logger.log(`Initiating native transfer to: ${params.to}`);
+      return this.sendNativeTransaction({
         wallet,
         to: params.to,
         amount: amountInWei,
         provider,
-        tokenAddress: params.tokenAddress,
         gas: params.gas,
         network: params.network,
       });
+    } catch (error) {
+      this.logger.error(`Native transaction failed: ${error.message}`);
+      throw new CustomException('TRANSACTION_FAILED');
     }
-
-    const amountInWei = ethers.parseUnits(params.amount, 18);
-    this.logger.log(
-      `Converted native amount ${params.amount} to Wei: ${amountInWei}`,
-    );
-
-    this.logger.log(`Initiating native transfer to: ${params.to}`);
-    return this.sendNativeTransaction({
-      wallet,
-      to: params.to,
-      amount: amountInWei,
-      provider,
-      gas: params.gas,
-      network: params.network,
-    });
   }
 
   private async sendNativeTransaction(

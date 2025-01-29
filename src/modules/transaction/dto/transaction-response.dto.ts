@@ -1,11 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NetworkType, CUSTOM_CODES } from '../../shared';
-import {
-  TransactionResponse,
-  TransactionStatus,
-} from '../types/transaction.types';
+import { TransactionStatus } from '../constants/transaction.constants';
 
-export class TransactionResponseDto implements TransactionResponse {
+export class TransactionResponseDto {
   @ApiProperty({ description: 'Transaction ID (UUID)' })
   id: string;
 

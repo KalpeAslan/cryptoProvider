@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { NetworkType } from '../../../shared/types/network.types';
+import { NetworkType } from '../../../shared';
 
 export interface EvmNetworkConfig {
   rpc: string;

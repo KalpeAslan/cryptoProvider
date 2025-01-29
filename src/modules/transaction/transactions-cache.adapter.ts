@@ -2,8 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { RedisRepository } from '../shared/repository/redis.repository';
 import {
   TransactionData,
-  TransactionStatus,
+  UpdateTransactionParams,
 } from './types/transaction.types';
+import { TransactionStatus } from './constants/transaction.constants';
 
 const TRANSACTION_KEY_PREFIX = 'tx:';
 
@@ -22,22 +23,20 @@ export class TransactionsCacheAdapter {
     return this.redis.get<TransactionData>(`${TRANSACTION_KEY_PREFIX}${id}`);
   }
 
-  async updateTransactionStatus(
-    id: string,
-    status: TransactionStatus,
-    hash?: string,
-  ): Promise<TransactionData | null> {
+  async updateTransaction({
+    id,
+    data,
+  }: UpdateTransactionParams): Promise<TransactionData | null> {
     this.logger.log(`Updating transaction status with id: ${id}`);
     const transaction = await this.getTransaction(id);
     if (!transaction) {
       return null;
     }
 
-    const updatedTransaction: TransactionData = {
+    const updatedTransaction = {
       ...transaction,
-      status,
+      ...data,
       updatedAt: new Date().toISOString(),
-      ...(hash && { hash }),
     };
 
     await this.redis.set(`${TRANSACTION_KEY_PREFIX}${id}`, updatedTransaction);
@@ -48,13 +47,20 @@ export class TransactionsCacheAdapter {
     status: TransactionStatus,
   ): Promise<TransactionData[]> {
     this.logger.log(`Getting transactions with status: ${status}`);
-    const transactions = await this.redis.getTransactionsByStatus(status);
-    return transactions.map((tx) => ({
-      ...tx,
-      privateKey: '',
-      createdAt: new Date(tx.createdAt).toISOString(),
-      updatedAt: new Date(tx.updatedAt).toISOString(),
-    })) as TransactionData[];
+    const pattern = `${TRANSACTION_KEY_PREFIX}*`;
+    const keys = await this.redis.getKeysByPattern(pattern);
+    const transactions = await this.redis.multiGet<TransactionData>(keys);
+
+    return transactions
+      .filter(
+        (tx): tx is TransactionData => tx !== null && tx.status === status,
+      )
+      .map((tx) => ({
+        ...tx,
+        privateKey: '',
+        createdAt: new Date(tx.createdAt).toISOString(),
+        updatedAt: new Date(tx.updatedAt).toISOString(),
+      }));
   }
 
   async deleteTransaction(id: string): Promise<void> {

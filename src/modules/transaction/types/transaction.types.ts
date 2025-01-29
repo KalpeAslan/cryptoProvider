@@ -1,12 +1,6 @@
 import { CustomCode } from '../../shared/types/common.types';
 import { NetworkType } from '../../shared/types/network.types';
-
-export enum TransactionStatus {
-  PENDING_QUEUE = 'PENDING_QUEUE',
-  PENDING_CONFIRMATION = 'PENDING_CONFIRMATION',
-  CONFIRMED = 'CONFIRMED',
-  FAILED = 'FAILED',
-}
+import { TransactionStatus } from '../constants/transaction.constants';
 
 export interface BaseTransactionData {
   from: string;
@@ -16,8 +10,7 @@ export interface BaseTransactionData {
   tokenAddress?: string;
   gas?: number;
 }
-
-export interface TransactionParams extends BaseTransactionData {
+interface TransactionParams extends BaseTransactionData {
   privateKey: string;
 }
 
@@ -27,12 +20,6 @@ export interface TransactionData extends TransactionParams, CustomCode {
   updatedAt: string;
   hash?: string;
   onChainData?: any;
-}
-
-export interface TransactionResponse
-  extends CustomCode,
-    Omit<TransactionData, 'privateKey'> {
-  id: string;
 }
 
 export interface TransactionConfirmationJob {
@@ -49,15 +36,11 @@ export interface PendingTransactionCheckJob {
   timestamp: number;
 }
 
-export interface Transaction {
-  hash: string;
-  networkTxHash?: string;
-  status: TransactionStatus;
-  from: string;
-  to: string;
-  amount: string;
-  network: string;
-  tokenAddress?: string;
-  createdAt: number;
-  updatedAt: number;
+export interface UpdateTransactionParams {
+  id: string;
+  data: Partial<TransactionData>;
 }
+
+export interface FullTransactionData
+  extends TransactionData,
+    ProcessTransactionJob {}

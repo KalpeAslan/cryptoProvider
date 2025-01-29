@@ -3,13 +3,13 @@ import { Job, Queue } from 'bull';
 import { EvmService } from '../evm/evm.service';
 import { TransactionService } from '../transaction.service';
 import {
-  TransactionStatus,
   ProcessTransactionJob,
   TransactionConfirmationJob,
   PendingTransactionCheckJob,
 } from '../types/transaction.types';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
+import { TransactionStatus } from '../constants/transaction.constants';
 
 type TransactionQueue = Queue<
   | ProcessTransactionJob
@@ -43,52 +43,7 @@ export class TransactionProcessor implements OnModuleInit {
 
   @Process('process')
   async processTransaction(job: Job<ProcessTransactionJob>) {
-    const { id, from, to, amount, privateKey, network, tokenAddress } =
-      job.data;
-
-    try {
-      // Get transaction info to check status
-      const transaction = await this.transactionService.getTransactionInfo(
-        id,
-        false,
-      );
-
-      // Only process if status is PENDING_QUEUE
-      if (transaction.status !== TransactionStatus.PENDING_QUEUE) {
-        this.logger.warn(
-          `Skipping transaction ${id} as status is ${transaction.status}`,
-        );
-        return;
-      }
-
-      const tx = await this.evmService.sendTransaction({
-        from,
-        to,
-        amount,
-        privateKey,
-        network,
-        tokenAddress,
-      });
-
-      await this.transactionService.updateTransactionStatus(
-        id,
-        TransactionStatus.PENDING_CONFIRMATION,
-        tx.hash,
-      );
-
-      const queue = job.queue as TransactionQueue;
-      await queue.add('check-confirmation', {
-        id,
-        txHash: tx.hash,
-        network,
-      });
-    } catch (error) {
-      await this.transactionService.updateTransactionStatus(
-        id,
-        TransactionStatus.FAILED,
-      );
-      throw error;
-    }
+    this.transactionService.processTransaction(job.data);
   }
 
   @Process('check-confirmation')
@@ -98,10 +53,12 @@ export class TransactionProcessor implements OnModuleInit {
     try {
       const tx = await this.evmService.getTransaction(txHash, network);
       if (tx) {
-        await this.transactionService.updateTransactionStatus(
+        await this.transactionService.updateTransaction({
           id,
-          TransactionStatus.CONFIRMED,
-        );
+          data: {
+            status: TransactionStatus.CONFIRMED,
+          },
+        });
       } else {
         const queue = job.queue as TransactionQueue;
         await queue.add('check-confirmation', job.data, { delay: 5000 });
@@ -131,10 +88,13 @@ export class TransactionProcessor implements OnModuleInit {
 
           if (networkTx) {
             const transactionId = (tx as unknown as { id: string }).id;
-            await this.transactionService.updateTransactionStatus(
-              transactionId,
-              TransactionStatus.CONFIRMED,
-            );
+            await this.transactionService.updateTransaction({
+              id: transactionId,
+              data: {
+                status: TransactionStatus.CONFIRMED,
+                onChainData: networkTx,
+              },
+            });
 
             this.logger.log(
               `Transaction ${transactionId} confirmed and included in blockchain`,

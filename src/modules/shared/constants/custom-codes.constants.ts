@@ -31,6 +31,10 @@ export const CUSTOM_CODES: Record<string, CustomCode> = {
     code: 4013,
     message: 'Too many requests, rate limit exceeded',
   },
+  PROVIDER_NOT_FOUND: {
+    code: 4014,
+    message: 'Provider not found',
+  },
 
   /** Errors related to blockchain and transactions (500x) */
   BLOCKCHAIN_UNAVAILABLE: {
@@ -69,3 +73,7 @@ export const CUSTOM_CODES: Record<string, CustomCode> = {
   CONFIGURATION_ERROR: { code: 6005, message: 'Service configuration error' },
   PROCESSING_ERROR: { code: 6006, message: 'General processing error' },
 };
+
+export const CUSTOM_CODES_MAP = new Map<string, CustomCode>(
+  Object.entries(CUSTOM_CODES),
+);

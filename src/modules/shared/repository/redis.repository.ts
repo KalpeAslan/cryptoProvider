@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import * as zlib from 'zlib';
 import { RedisService as NestRedisService } from '@liaoliaots/nestjs-redis';
 import { Redis } from 'ioredis';
-import { TransactionStatus } from '../../transaction/types/transaction.types';
-import { Transaction } from '../../transaction/types/transaction.types';
+import { TransactionStatus } from '@/modules/transaction/constants/transaction.constants';
+import { Transaction } from 'ethers';
 
 const TRANSACTION_KEY = 'transactions';
 
@@ -156,14 +156,5 @@ export class RedisRepository {
   ): Promise<T | null> {
     const data = await this.redis.hget(hashKey, fieldKey);
     return data ? (JSON.parse(data) as T) : null;
-  }
-
-  async getTransactionsByStatus(
-    status: TransactionStatus,
-  ): Promise<Transaction[]> {
-    const transactions = await this.redis.hgetall(TRANSACTION_KEY);
-    return Object.values(transactions)
-      .map((tx) => JSON.parse(tx) as Transaction)
-      .filter((tx) => tx.status === status);
   }
 }
