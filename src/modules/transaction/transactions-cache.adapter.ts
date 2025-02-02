@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { RedisRepository } from '../shared/repository/redis.repository';
+import { RedisRepository } from '../shared/repository/redis/redis.repository';
 import {
   TransactionData,
   UpdateTransactionParams,
@@ -26,6 +26,7 @@ export class TransactionsCacheAdapter {
   async updateTransaction({
     id,
     data,
+    useTTL,
   }: UpdateTransactionParams): Promise<TransactionData | null> {
     this.logger.log(`Updating transaction status with id: ${id}`);
     const transaction = await this.getTransaction(id);
@@ -39,7 +40,12 @@ export class TransactionsCacheAdapter {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.redis.set(`${TRANSACTION_KEY_PREFIX}${id}`, updatedTransaction);
+    const ttl5Minutes = 1000 * 60 * 5;
+    await this.redis.set(
+      `${TRANSACTION_KEY_PREFIX}${id}`,
+      updatedTransaction,
+      useTTL ? ttl5Minutes : undefined,
+    );
     return updatedTransaction;
   }
 
@@ -50,6 +56,9 @@ export class TransactionsCacheAdapter {
     const pattern = `${TRANSACTION_KEY_PREFIX}*`;
     const keys = await this.redis.getKeysByPattern(pattern);
     const transactions = await this.redis.multiGet<TransactionData>(keys);
+    this.logger.log(
+      `Found ${transactions.length} transactions with status: ${status}`,
+    );
 
     return transactions
       .filter(

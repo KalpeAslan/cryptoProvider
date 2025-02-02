@@ -10,11 +10,10 @@ import {
   UpdateTransactionParams,
 } from './types/transaction.types';
 import { TransactionsCacheAdapter } from './transactions-cache.adapter';
-import { CUSTOM_CODES } from '../shared/constants/custom-codes.constants';
+import { CUSTOM_CODES, CustomCodesEnum } from '@core/shared';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { TransactionStatus } from './constants/transaction.constants';
 import { Logger } from '@nestjs/common';
-import { CustomException } from '../shared/exceptions/custom-error.exception';
 
 @Injectable()
 export class TransactionService {
@@ -30,13 +29,15 @@ export class TransactionService {
     createTransactionDto: CreateTransactionDto,
   ): Promise<TransactionResponseDto> {
     const transactionId = uuidv4();
+
+    const { code, message } = CUSTOM_CODES[CustomCodesEnum.TRANSACTION_CREATED];
     const transactionData: TransactionData = {
       ...createTransactionDto,
       status: TransactionStatus.PENDING_QUEUE,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      code: CUSTOM_CODES.TRANSACTION_CREATED.code,
-      message: CUSTOM_CODES.TRANSACTION_CREATED.message,
+      code,
+      message,
     };
 
     await this.transactionsCache.setTransaction(transactionId, transactionData);
@@ -48,10 +49,14 @@ export class TransactionService {
 
     await this.transactionsQueue.add('process', jobData);
 
-    const response: TransactionResponseDto = {
-      id: transactionId,
+    const response: TransactionResponseDto = new TransactionResponseDto({
       ...transactionData,
-    };
+      id: transactionId,
+      gasUsed: null,
+      gasPrice: null,
+      chainId: 0,
+      data: null,
+    });
     return response;
   }
 
@@ -62,17 +67,24 @@ export class TransactionService {
       throw new NotFoundException(`Transaction with id:${id} not found`);
     }
 
-    if (transaction.hash && !transaction.onChainData) {
-      const onChainData = await this.evmService.getTransaction(
-        transaction.hash,
-        transaction.network,
-      );
-      if (onChainData) {
-        transaction.onChainData = onChainData;
-      }
-    }
+    // if (transaction.hash && !transaction.onChainData) {
+    //   const onChainData = await this.evmService.getTransaction(
+    //     transaction.hash,
+    //     transaction.network,
+    //   );
+    //   if (onChainData) {
+    //     transaction.onChainData = onChainData;
+    //   }
+    // }
 
-    const response: TransactionResponseDto = { ...transaction, id };
+    const response: TransactionResponseDto = new TransactionResponseDto({
+      ...transaction,
+      id,
+      gasUsed: null,
+      gasPrice: null,
+      chainId: 0,
+      data: null,
+    });
 
     this.logger.log(`transaction: ${JSON.stringify(transaction)}`);
 
@@ -99,7 +111,14 @@ export class TransactionService {
       throw new NotFoundException(`Transaction with id:${id} not found`);
     }
 
-    const response: TransactionResponseDto = { ...updatedTransaction, id };
+    const response: TransactionResponseDto = new TransactionResponseDto({
+      id,
+      ...updatedTransaction,
+      gasUsed: null,
+      gasPrice: null,
+      chainId: 0,
+      data: null,
+    });
     return response;
   }
 
@@ -128,36 +147,35 @@ export class TransactionService {
         return;
       }
 
-      const tx = await this.evmService.sendTransaction(transaction);
+      await this.evmService
+        .sendTransaction(transaction)
+        .then((tx) => {
+          this.transactionsQueue.add('check-confirmation', {
+            id,
+            txHash: tx.hash,
+            network,
+          });
+        })
+        .catch((error) => {
+          this.logger.error(
+            `Transaction processing failed: ${error.message}`,
+            error.stack,
+          );
 
-      await this.transactionsCache.updateTransaction({
-        id,
-        data: {
-          status: TransactionStatus.PENDING_CONFIRMATION,
-          hash: tx.hash,
-        },
-      });
-
-      await this.transactionsQueue.add('check-confirmation', {
-        id,
-        txHash: tx.hash,
-        network,
-      });
-    } catch (error) {
-      this.logger.error(
-        `Transaction processing failed: ${error.message}`,
-        error.stack,
-      );
-
-      if (error instanceof CustomException) {
-        await this.transactionsCache.updateTransaction({
-          id,
-          data: {
-            status: TransactionStatus.FAILED,
-            message: error.message,
-            code: error.code,
-          },
+          this.transactionsCache.updateTransaction({
+            id,
+            data: {
+              status: TransactionStatus.FAILED,
+              message: error.message,
+              code: error.code,
+            },
+            useTTL: true,
+          });
+          throw error;
         });
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
       }
     }
   }

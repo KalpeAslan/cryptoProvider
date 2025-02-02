@@ -1,17 +1,23 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { NetworkType } from '../../shared/types/network.types';
+import {
+  NetworkType,
+  SharedConfig,
+  CustomException,
+  CustomCode,
+  CUSTOM_CODES,
+  CustomCodesEnum,
+} from '@core/shared';
 import { TransactionData } from '../types/transaction.types';
-import { SharedConfig } from '../../shared/config/shared.config';
 import {
   NativeTransactionParams,
   TokenTransactionParams,
-  TransactionResult,
 } from './types/evm.types';
+import { TransactionResponseDto } from '../dto/transaction-response.dto';
+import { TransactionStatus } from '../constants/transaction.constants';
 import { EvmGasComputingService } from './evm-gas-computing.service';
-import { EvmFactory } from './evm.factory';
-import { CustomException } from '@/modules/shared/exceptions/custom-error.exception';
-
+import type { TransactionRequest } from 'ethers/src.ts/providers/provider';
+import { ERC20_ABI } from './evm.constants';
 @Injectable()
 export class EvmService {
   private readonly providers: Map<NetworkType, ethers.JsonRpcProvider>;
@@ -36,24 +42,22 @@ export class EvmService {
     });
   }
 
-  async sendTransaction(params: TransactionData): Promise<TransactionResult> {
-    this.logger.log(`Processing transaction on network: ${params.network}`);
-
+  validateTransaction(params: TransactionData): CustomCode {
     if (!params.network) {
-      throw new CustomException('INVALID_REQUEST');
+      return CUSTOM_CODES[CustomCodesEnum.INVALID_REQUEST];
     }
 
     const provider = this.providers.get(params.network);
     if (!provider) {
-      throw new CustomException('PROVIDER_NOT_FOUND');
+      return CUSTOM_CODES[CustomCodesEnum.PROVIDER_NOT_FOUND];
     }
 
     if (!params.privateKey) {
-      throw new CustomException('UNAUTHORIZED');
+      return CUSTOM_CODES[CustomCodesEnum.UNAUTHORIZED];
     }
 
     if (!params.to || !ethers.isAddress(params.to)) {
-      throw new CustomException('INVALID_ADDRESS');
+      return CUSTOM_CODES[CustomCodesEnum.INVALID_ADDRESS];
     }
 
     if (
@@ -61,7 +65,32 @@ export class EvmService {
       isNaN(Number(params.amount)) ||
       Number(params.amount) <= 0
     ) {
-      throw new CustomException('INVALID_REQUEST');
+      return CUSTOM_CODES[CustomCodesEnum.INVALID_REQUEST];
+    }
+
+    return CUSTOM_CODES[CustomCodesEnum.SUCCESS];
+  }
+
+  // sendTransaction
+  async sendTransaction(
+    params: TransactionData,
+  ): Promise<TransactionResponseDto> {
+    this.logger.log(`Processing transaction on network: ${params.network}`);
+
+    const validationResult = this.validateTransaction(params);
+
+    if (validationResult.code !== CustomCodesEnum.SUCCESS) {
+      throw new CustomException(validationResult.code);
+    }
+
+    const provider = this.providers.get(params.network);
+
+    if (
+      !params.amount ||
+      isNaN(Number(params.amount)) ||
+      Number(params.amount) <= 0
+    ) {
+      throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
     }
 
     const wallet = new ethers.Wallet(params.privateKey, provider);
@@ -69,11 +98,15 @@ export class EvmService {
 
     if (params.tokenAddress) {
       if (!ethers.isAddress(params.tokenAddress)) {
-        throw new CustomException('INVALID_ADDRESS');
+        throw new CustomException(CustomCodesEnum.INVALID_ADDRESS);
       }
 
       this.logger.log(`Initiating token transfer to: ${params.to}`);
-      const contract = EvmFactory.createContract(params.tokenAddress, provider);
+      const contract = new ethers.Contract(
+        params.tokenAddress,
+        ERC20_ABI,
+        provider,
+      );
 
       try {
         const decimals = await contract.decimals();
@@ -88,7 +121,7 @@ export class EvmService {
           wallet,
           to: params.to,
           amount: amountInWei,
-          provider,
+          provider: provider as ethers.JsonRpcProvider,
           tokenAddress: params.tokenAddress,
           gas: params.gas,
           network: params.network,
@@ -97,7 +130,7 @@ export class EvmService {
         this.logger.error(
           `Token contract interaction failed: ${error.message}`,
         );
-        throw new CustomException('CONTRACT_CALL_FAILED');
+        throw new CustomException(CustomCodesEnum.CONTRACT_CALL_FAILED);
       }
     }
 
@@ -112,19 +145,19 @@ export class EvmService {
         wallet,
         to: params.to,
         amount: amountInWei,
-        provider,
+        provider: provider as ethers.JsonRpcProvider,
         gas: params.gas,
         network: params.network,
       });
     } catch (error) {
       this.logger.error(`Native transaction failed: ${error.message}`);
-      throw new CustomException('TRANSACTION_FAILED');
+      throw new CustomException(CustomCodesEnum.TRANSACTION_FAILED);
     }
   }
 
   private async sendNativeTransaction(
     params: NativeTransactionParams,
-  ): Promise<TransactionResult> {
+  ): Promise<TransactionResponseDto> {
     const nonce = await params.provider.getTransactionCount(
       params.wallet.address,
     );
@@ -143,12 +176,14 @@ export class EvmService {
       `Computed gas parameters - limit: ${gasLimit}, price: ${gasPrice}`,
     );
 
-    const txRequest = EvmFactory.createNativeTransactionRequest(
-      params,
+    const txRequest: TransactionRequest = {
+      to: params.to,
+      value: params.amount,
       nonce,
       gasLimit,
       gasPrice,
-    );
+    };
+
     const tx = await params.wallet.sendTransaction(txRequest);
     this.logger.log(`Native transaction sent with hash: ${tx.hash}`);
 
@@ -160,12 +195,30 @@ export class EvmService {
       `Native transaction confirmed in block: ${receipt.blockNumber}`,
     );
 
-    return EvmFactory.formatTransactionResult(tx, receipt, params.to);
+    const { code, message } = CUSTOM_CODES[CustomCodesEnum.SUCCESS];
+
+    return new TransactionResponseDto({
+      id: tx.hash,
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || '',
+      amount: tx.value.toString(),
+      network: params.network,
+      status: TransactionStatus.CONFIRMED,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      gasPrice: tx.gasPrice?.toString() ?? '0',
+      data: tx.data,
+      chainId: Number(tx.chainId),
+      gasUsed: receipt.gasUsed.toString(),
+      code,
+      message,
+    });
   }
 
   private async sendTokenTransaction(
     params: TokenTransactionParams,
-  ): Promise<TransactionResult> {
+  ): Promise<TransactionResponseDto> {
     try {
       this.logger.log(`Initializing token contract at: ${params.tokenAddress}`);
       const nonce = await params.provider.getTransactionCount(
@@ -186,7 +239,11 @@ export class EvmService {
         `Computed gas parameters - limit: ${gasLimit}, price: ${gasPrice}`,
       );
 
-      const data = EvmFactory.createTokenTransferData(params.to, params.amount);
+      const iface = new ethers.Interface(ERC20_ABI);
+      const data = iface.encodeFunctionData('transfer', [
+        params.to,
+        params.amount,
+      ]);
       const tx = await params.wallet.sendTransaction({
         to: params.tokenAddress,
         data,
@@ -204,12 +261,26 @@ export class EvmService {
         `Token transaction confirmed in block: ${receipt.blockNumber}`,
       );
 
-      return EvmFactory.formatTransactionResult(
-        tx,
-        receipt,
-        params.tokenAddress,
-        params.amount,
-      );
+      const { code, message } = CUSTOM_CODES[CustomCodesEnum.SUCCESS];
+
+      return new TransactionResponseDto({
+        id: tx.hash,
+        hash: tx.hash,
+        from: tx.from,
+        to: tx.to || '',
+        amount: params.amount.toString(),
+        network: params.network,
+        tokenAddress: params.tokenAddress,
+        status: TransactionStatus.CONFIRMED,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        gasPrice: tx.gasPrice?.toString() ?? '0',
+        data: tx.data,
+        chainId: Number(tx.chainId),
+        gasUsed: receipt.gasUsed.toString(),
+        code,
+        message,
+      });
     } catch (error) {
       this.logger.error(
         `Token transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -219,10 +290,12 @@ export class EvmService {
     }
   }
 
+  // getTransaction
+
   async getTransaction(
     txHash: string,
     network: NetworkType,
-  ): Promise<TransactionResult | null> {
+  ): Promise<TransactionResponseDto | null> {
     const provider = this.providers.get(network);
     if (!provider) {
       throw new Error(`Provider not found for network ${network}`);
@@ -232,6 +305,26 @@ export class EvmService {
     if (!tx) return null;
 
     const receipt = await provider.getTransactionReceipt(txHash);
-    return EvmFactory.formatTransactionResult(tx, receipt, tx.to ?? '');
+    if (!receipt) return null;
+
+    const { code, message } = CUSTOM_CODES[CustomCodesEnum.SUCCESS];
+
+    return new TransactionResponseDto({
+      id: tx.hash,
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || '',
+      amount: tx.value.toString(),
+      network: network,
+      status: TransactionStatus.CONFIRMED,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      gasPrice: tx.gasPrice?.toString() ?? '0',
+      data: tx.data,
+      chainId: Number(tx.chainId),
+      gasUsed: receipt.gasUsed.toString(),
+      code,
+      message,
+    });
   }
 }

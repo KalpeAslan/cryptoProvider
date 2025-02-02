@@ -1,5 +1,4 @@
-import { CustomCode } from '../../shared/types/common.types';
-import { NetworkType } from '../../shared/types/network.types';
+import { CustomCode, NetworkType } from '@core/shared';
 import { TransactionStatus } from '../constants/transaction.constants';
 
 export interface BaseTransactionData {
@@ -19,7 +18,7 @@ export interface TransactionData extends TransactionParams, CustomCode {
   createdAt: string;
   updatedAt: string;
   hash?: string;
-  onChainData?: any;
+  // onChainData?: any;
 }
 
 export interface TransactionConfirmationJob {
@@ -39,8 +38,5 @@ export interface PendingTransactionCheckJob {
 export interface UpdateTransactionParams {
   id: string;
   data: Partial<TransactionData>;
+  useTTL?: boolean;
 }
-
-export interface FullTransactionData
-  extends TransactionData,
-    ProcessTransactionJob {}

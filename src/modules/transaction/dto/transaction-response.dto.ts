@@ -38,8 +38,8 @@ export class TransactionResponseDto {
   @ApiPropertyOptional({ description: 'On-chain transaction hash' })
   hash?: string;
 
-  @ApiPropertyOptional({ description: 'Additional on-chain transaction data' })
-  onChainData?: any;
+  // @ApiPropertyOptional({ description: 'Additional on-chain transaction data' })
+  // onChainData?: any;
 
   @ApiProperty({
     enum: CUSTOM_CODES,
@@ -49,4 +49,24 @@ export class TransactionResponseDto {
 
   @ApiProperty({ description: 'Custom message for the transaction' })
   message: string;
+
+  // gasUser
+  @ApiProperty({ description: 'Gas used for the transaction', nullable: true })
+  gasUsed: string | null;
+
+  // gasPrice
+  @ApiProperty({ description: 'Gas price for the transaction', nullable: true })
+  gasPrice: string | null;
+
+  // chainId
+  @ApiProperty({ description: 'Chain ID for the transaction' })
+  chainId: number;
+
+  // data
+  @ApiProperty({ description: 'Data for the transaction', nullable: true })
+  data: string | null;
+
+  constructor(transaction: TransactionResponseDto) {
+    Object.assign(this, transaction);
+  }
 }

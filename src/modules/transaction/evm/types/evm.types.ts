@@ -1,13 +1,5 @@
 import { ethers } from 'ethers';
-import { NetworkType } from '../../../shared';
-
-export interface EvmNetworkConfig {
-  rpc: string;
-  chainId: number;
-  provider: ethers.JsonRpcProvider;
-}
-
-export type EvmNetworkMap = Record<NetworkType, EvmNetworkConfig>;
+import { NetworkType } from '@core/shared';
 
 export interface NativeTransactionParams {
   wallet: ethers.Wallet;
@@ -39,20 +31,3 @@ export interface TransactionResult {
   chainId: number;
   gasUsed: string;
 }
-
-export type EthersTransaction = ethers.TransactionResponse;
-export type EthersTransactionReceipt = ethers.TransactionReceipt;
-
-export interface Erc20TransferTransaction {
-  hash: string;
-  from: string;
-  to: string;
-  data: string;
-  nonce: number;
-  gasPrice: bigint;
-  chainId: number;
-}
-
-export const ERC20_TRANSFER_ABI = [
-  'function transfer(address to, uint256 amount) returns (bool)',
-] as const;

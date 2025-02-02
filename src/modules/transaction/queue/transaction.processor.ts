@@ -92,7 +92,6 @@ export class TransactionProcessor implements OnModuleInit {
               id: transactionId,
               data: {
                 status: TransactionStatus.CONFIRMED,
-                onChainData: networkTx,
               },
             });
 

@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ethers } from 'ethers';
-import { NetworkType } from '../../shared/types/network.types';
-import { SharedConfig } from '../../shared/config/shared.config';
+import { NetworkType, SharedConfig } from '@core/shared';
 
 @Injectable()
 export class EvmGasComputingService {
