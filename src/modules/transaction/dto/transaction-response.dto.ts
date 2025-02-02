@@ -1,8 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NetworkType, CUSTOM_CODES } from '../../shared';
 import { TransactionStatus } from '../constants/transaction.constants';
+import { TransactionData } from '../types/transaction.types';
 
-export class TransactionResponseDto {
+export class TransactionResponseDto
+  implements Omit<TransactionData, 'privateKey'>
+{
   @ApiProperty({ description: 'Transaction ID (UUID)' })
   id: string;
 
@@ -51,22 +54,25 @@ export class TransactionResponseDto {
   message: string;
 
   // gasUser
-  @ApiProperty({ description: 'Gas used for the transaction', nullable: true })
-  gasUsed: string | null;
+  @ApiPropertyOptional({ description: 'Gas used for the transaction' })
+  gasUsed?: string;
 
   // gasPrice
-  @ApiProperty({ description: 'Gas price for the transaction', nullable: true })
-  gasPrice: string | null;
+  @ApiPropertyOptional({ description: 'Gas price for the transaction' })
+  gasPrice?: string;
 
   // chainId
-  @ApiProperty({ description: 'Chain ID for the transaction' })
-  chainId: number;
+  @ApiPropertyOptional({ description: 'Chain ID for the transaction' })
+  chainId?: number;
 
   // data
-  @ApiProperty({ description: 'Data for the transaction', nullable: true })
-  data: string | null;
+  @ApiPropertyOptional({ description: 'Data for the transaction' })
+  data?: string;
 
-  constructor(transaction: TransactionResponseDto) {
+  @ApiPropertyOptional({ description: 'Gas limit for the transaction' })
+  gas?: number;
+
+  constructor(transaction: Partial<TransactionResponseDto>) {
     Object.assign(this, transaction);
   }
 }

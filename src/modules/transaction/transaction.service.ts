@@ -14,6 +14,7 @@ import { CUSTOM_CODES, CustomCodesEnum } from '@core/shared';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { TransactionStatus } from './constants/transaction.constants';
 import { Logger } from '@nestjs/common';
+import { TransactionFactory } from './transaction.factory';
 
 @Injectable()
 export class TransactionService {
@@ -33,6 +34,7 @@ export class TransactionService {
     const { code, message } = CUSTOM_CODES[CustomCodesEnum.TRANSACTION_CREATED];
     const transactionData: TransactionData = {
       ...createTransactionDto,
+      id: transactionId,
       status: TransactionStatus.PENDING_QUEUE,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -49,15 +51,7 @@ export class TransactionService {
 
     await this.transactionsQueue.add('process', jobData);
 
-    const response: TransactionResponseDto = new TransactionResponseDto({
-      ...transactionData,
-      id: transactionId,
-      gasUsed: null,
-      gasPrice: null,
-      chainId: 0,
-      data: null,
-    });
-    return response;
+    return TransactionFactory.toResponseDto(transactionData, transactionId);
   }
 
   async getTransactionInfo(id: string): Promise<TransactionResponseDto> {
@@ -67,24 +61,20 @@ export class TransactionService {
       throw new NotFoundException(`Transaction with id:${id} not found`);
     }
 
-    // if (transaction.hash && !transaction.onChainData) {
-    //   const onChainData = await this.evmService.getTransaction(
-    //     transaction.hash,
-    //     transaction.network,
-    //   );
-    //   if (onChainData) {
-    //     transaction.onChainData = onChainData;
-    //   }
-    // }
-
-    const response: TransactionResponseDto = new TransactionResponseDto({
-      ...transaction,
-      id,
-      gasUsed: null,
-      gasPrice: null,
-      chainId: 0,
-      data: null,
-    });
+    if (transaction.hash) {
+      const onChainData = await this.evmService.getTransaction(
+        transaction.hash,
+        transaction.network,
+      );
+      if (onChainData) {
+        Object.assign(transaction, {
+          gasUsed: onChainData.gasUsed,
+          gasPrice: onChainData.gasPrice,
+          chainId: onChainData.chainId,
+          data: onChainData.data,
+        });
+      }
+    }
 
     this.logger.log(`transaction: ${JSON.stringify(transaction)}`);
 
@@ -97,7 +87,7 @@ export class TransactionService {
       await this.transactionsCache.deleteTransaction(id);
     }
 
-    return response;
+    return TransactionFactory.toResponseDto(transaction, id);
   }
 
   async updateTransaction(
@@ -111,15 +101,7 @@ export class TransactionService {
       throw new NotFoundException(`Transaction with id:${id} not found`);
     }
 
-    const response: TransactionResponseDto = new TransactionResponseDto({
-      id,
-      ...updatedTransaction,
-      gasUsed: null,
-      gasPrice: null,
-      chainId: 0,
-      data: null,
-    });
-    return response;
+    return TransactionFactory.toResponseDto(updatedTransaction, id);
   }
 
   async getPendingTransactions() {
@@ -128,18 +110,38 @@ export class TransactionService {
     );
   }
 
+  async getTransactionsByStatus(
+    status: TransactionStatus,
+  ): Promise<TransactionResponseDto[]> {
+    const transactions =
+      await this.transactionsCache.getTransactionsByStatus(status);
+    return transactions.map((transaction) =>
+      TransactionFactory.toResponseDto(transaction, transaction.id as string),
+    );
+  }
+
+  async deleteTransactionById(id: string): Promise<void> {
+    const transaction = await this.transactionsCache.getTransaction(id);
+    if (!transaction) {
+      throw new NotFoundException(`Transaction with id:${id} not found`);
+    }
+    await this.transactionsCache.deleteTransaction(id);
+  }
+
+  async deleteTransactionsByStatus(status: TransactionStatus): Promise<void> {
+    await this.transactionsCache.deleteTransactionsByStatus(status);
+  }
+
   async processTransaction(data: ProcessTransactionJob) {
-    const { id, network } = data;
+    const { id } = data;
     let transaction: TransactionData | null = null;
 
     try {
-      // Get transaction info to check status
       transaction = await this.transactionsCache.getTransaction(id);
       if (!transaction) {
         throw new NotFoundException(`Transaction with id:${id} not found`);
       }
 
-      // Only process if status is PENDING_QUEUE
       if (transaction.status !== TransactionStatus.PENDING_QUEUE) {
         this.logger.warn(
           `Skipping transaction ${id} as status is ${transaction.status}`,
@@ -149,12 +151,19 @@ export class TransactionService {
 
       await this.evmService
         .sendTransaction(transaction)
-        .then((tx) => {
-          this.transactionsQueue.add('check-confirmation', {
-            id,
-            txHash: tx.hash,
-            network,
-          });
+        .then(async (tx) => {
+          if (tx.status === TransactionStatus.CONFIRMED) {
+            const { code, message } =
+              CUSTOM_CODES[CustomCodesEnum.TRANSACTION_CONFIRMED];
+            await this.transactionsCache.updateTransaction({
+              id,
+              data: {
+                status: TransactionStatus.CONFIRMED,
+                code,
+                message,
+              },
+            });
+          }
         })
         .catch((error) => {
           this.logger.error(

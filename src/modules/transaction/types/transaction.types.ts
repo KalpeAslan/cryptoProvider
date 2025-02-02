@@ -14,11 +14,15 @@ interface TransactionParams extends BaseTransactionData {
 }
 
 export interface TransactionData extends TransactionParams, CustomCode {
+  id?: string;
   status: TransactionStatus;
   createdAt: string;
   updatedAt: string;
   hash?: string;
-  // onChainData?: any;
+  data?: string;
+  gasUsed?: string;
+  gasPrice?: string;
+  chainId?: number;
 }
 
 export interface TransactionConfirmationJob {

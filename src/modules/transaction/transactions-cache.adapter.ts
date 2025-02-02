@@ -5,6 +5,7 @@ import {
   UpdateTransactionParams,
 } from './types/transaction.types';
 import { TransactionStatus } from './constants/transaction.constants';
+import { TransactionResponseDto } from './dto/transaction-response.dto';
 
 const TRANSACTION_KEY_PREFIX = 'tx:';
 
@@ -20,7 +21,10 @@ export class TransactionsCacheAdapter {
   }
 
   async getTransaction(id: string): Promise<TransactionData | null> {
-    return this.redis.get<TransactionData>(`${TRANSACTION_KEY_PREFIX}${id}`);
+    const data = await this.redis.get<TransactionData>(
+      `${TRANSACTION_KEY_PREFIX}${id}`,
+    );
+    return data;
   }
 
   async updateTransaction({
@@ -67,13 +71,21 @@ export class TransactionsCacheAdapter {
       .map((tx) => ({
         ...tx,
         privateKey: '',
-        createdAt: new Date(tx.createdAt).toISOString(),
-        updatedAt: new Date(tx.updatedAt).toISOString(),
       }));
   }
 
   async deleteTransaction(id: string): Promise<void> {
     this.logger.log(`Deleting transaction with id: ${id}`);
     await this.redis.delete(`${TRANSACTION_KEY_PREFIX}${id}`);
+  }
+
+  async deleteTransactionsByStatus(status: TransactionStatus): Promise<void> {
+    const transactions = await this.getTransactionsByStatus(status);
+    this.redis.multiDelete(
+      transactions.map((tx) => {
+        this.logger.log(`Deleting transaction with id: ${tx.id}`);
+        return `${TRANSACTION_KEY_PREFIX}${tx.id}`;
+      }),
+    );
   }
 }

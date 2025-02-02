@@ -13,7 +13,6 @@ import {
   NativeTransactionParams,
   TokenTransactionParams,
 } from './types/evm.types';
-import { TransactionResponseDto } from '../dto/transaction-response.dto';
 import { TransactionStatus } from '../constants/transaction.constants';
 import { EvmGasComputingService } from './evm-gas-computing.service';
 import type { TransactionRequest } from 'ethers/src.ts/providers/provider';
@@ -72,9 +71,7 @@ export class EvmService {
   }
 
   // sendTransaction
-  async sendTransaction(
-    params: TransactionData,
-  ): Promise<TransactionResponseDto> {
+  async sendTransaction(params: TransactionData): Promise<TransactionData> {
     this.logger.log(`Processing transaction on network: ${params.network}`);
 
     const validationResult = this.validateTransaction(params);
@@ -157,7 +154,7 @@ export class EvmService {
 
   private async sendNativeTransaction(
     params: NativeTransactionParams,
-  ): Promise<TransactionResponseDto> {
+  ): Promise<TransactionData> {
     const nonce = await params.provider.getTransactionCount(
       params.wallet.address,
     );
@@ -197,7 +194,7 @@ export class EvmService {
 
     const { code, message } = CUSTOM_CODES[CustomCodesEnum.SUCCESS];
 
-    return new TransactionResponseDto({
+    return {
       id: tx.hash,
       hash: tx.hash,
       from: tx.from,
@@ -213,12 +210,12 @@ export class EvmService {
       gasUsed: receipt.gasUsed.toString(),
       code,
       message,
-    });
+    } as TransactionData;
   }
 
   private async sendTokenTransaction(
     params: TokenTransactionParams,
-  ): Promise<TransactionResponseDto> {
+  ): Promise<TransactionData> {
     try {
       this.logger.log(`Initializing token contract at: ${params.tokenAddress}`);
       const nonce = await params.provider.getTransactionCount(
@@ -263,7 +260,7 @@ export class EvmService {
 
       const { code, message } = CUSTOM_CODES[CustomCodesEnum.SUCCESS];
 
-      return new TransactionResponseDto({
+      return {
         id: tx.hash,
         hash: tx.hash,
         from: tx.from,
@@ -280,7 +277,7 @@ export class EvmService {
         gasUsed: receipt.gasUsed.toString(),
         code,
         message,
-      });
+      } as TransactionData;
     } catch (error) {
       this.logger.error(
         `Token transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -295,7 +292,7 @@ export class EvmService {
   async getTransaction(
     txHash: string,
     network: NetworkType,
-  ): Promise<TransactionResponseDto | null> {
+  ): Promise<TransactionData | null> {
     const provider = this.providers.get(network);
     if (!provider) {
       throw new Error(`Provider not found for network ${network}`);
@@ -309,7 +306,7 @@ export class EvmService {
 
     const { code, message } = CUSTOM_CODES[CustomCodesEnum.SUCCESS];
 
-    return new TransactionResponseDto({
+    return {
       id: tx.hash,
       hash: tx.hash,
       from: tx.from,
@@ -325,6 +322,6 @@ export class EvmService {
       gasUsed: receipt.gasUsed.toString(),
       code,
       message,
-    });
+    } as TransactionData;
   }
 }

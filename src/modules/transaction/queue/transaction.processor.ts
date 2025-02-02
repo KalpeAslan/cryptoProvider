@@ -46,29 +46,6 @@ export class TransactionProcessor implements OnModuleInit {
     this.transactionService.processTransaction(job.data);
   }
 
-  @Process('check-confirmation')
-  async checkConfirmation(job: Job<TransactionConfirmationJob>) {
-    const { id, txHash, network } = job.data;
-
-    try {
-      const tx = await this.evmService.getTransaction(txHash, network);
-      if (tx) {
-        await this.transactionService.updateTransaction({
-          id,
-          data: {
-            status: TransactionStatus.CONFIRMED,
-          },
-        });
-      } else {
-        const queue = job.queue as TransactionQueue;
-        await queue.add('check-confirmation', job.data, { delay: 5000 });
-      }
-    } catch {
-      const queue = job.queue as TransactionQueue;
-      await queue.add('check-confirmation', job.data, { delay: 5000 });
-    }
-  }
-
   @Process('check-pending-transactions')
   async checkPendingTransactions(_: Job<PendingTransactionCheckJob>) {
     try {
