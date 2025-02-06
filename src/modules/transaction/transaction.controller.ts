@@ -6,6 +6,7 @@ import {
   Param,
   Delete,
   Query,
+  ParseEnumPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -110,7 +111,8 @@ export class TransactionController {
     description: 'Transactions deleted successfully',
   })
   async deleteTransactionsByStatus(
-    @Param('status') status: TransactionStatus,
+    @Param('status', new ParseEnumPipe(TransactionStatus))
+    status: TransactionStatus,
   ): Promise<void> {
     return this.transactionService.deleteTransactionsByStatus(status);
   }
