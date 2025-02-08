@@ -8,10 +8,16 @@ import { ENV } from '../constants/env.constants';
 export class SharedConfig implements AppConfig {
   constructor(private readonly configService: ConfigService) {}
 
+  get encryption() {
+    return {
+      key: this.getEnvOrDefault(ENV.ENCRYPTION.KEY),
+    };
+  }
+
   get server() {
     return {
       host: this.getEnvOrDefault(ENV.SERVER.HOST, 'localhost'),
-      port: this.getEnvAsIntOrDefault(ENV.SERVER.PORT, 3000),
+      port: this.getEnvAsIntOrDefault(ENV.SERVER.PORT, 3030),
     };
   }
 
@@ -64,6 +70,13 @@ export class SharedConfig implements AppConfig {
           'https://sepolia.gateway.tenderly.co',
         ),
         chainId: 11155111,
+      },
+      [NetworkType.HARDHAT]: {
+        rpc: this.getEnvOrDefault(
+          ENV.NETWORKS.HARDHAT.RPC,
+          'http://127.0.0.1:8545',
+        ),
+        chainId: 31337,
       },
     };
   }

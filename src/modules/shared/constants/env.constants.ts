@@ -6,6 +6,9 @@ export const ENV = {
   REDIS: {
     URL: 'REDIS_URI',
   },
+  ENCRYPTION: {
+    KEY: 'ENCRYPTION_KEY',
+  },
   NETWORKS: {
     POLYGON: {
       RPC: 'POLYGON_RPC',
@@ -24,6 +27,9 @@ export const ENV = {
     },
     ETH_TESTNET: {
       RPC: 'ETH_TESTNET_RPC',
+    },
+    HARDHAT: {
+      RPC: 'HARDHAT_RPC',
     },
   },
 } as const;
