@@ -78,6 +78,20 @@ export class SharedConfig implements AppConfig {
         ),
         chainId: 31337,
       },
+      [NetworkType.TRON]: {
+        rpc: this.getEnvOrDefault(
+          ENV.NETWORKS.TRON.RPC,
+          'https://api.trongrid.io',
+        ),
+        chainId: 728126428,
+      },
+      [NetworkType.NILE]: {
+        rpc: this.getEnvOrDefault(
+          ENV.NETWORKS.NILE.RPC,
+          'https://api.nileex.io/',
+        ),
+        chainId: 1001,
+      },
     };
   }
 

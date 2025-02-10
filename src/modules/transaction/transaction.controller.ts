@@ -38,6 +38,23 @@ export class TransactionController {
     return this.transactionService.createTransaction(createTransactionDto);
   }
 
+  @Post('test')
+  @ApiOperation({
+    summary:
+      'ONLY: FOR DEVELOPER!!! Create a new blockchain transaction without queue',
+    deprecated: true,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction created successfully',
+    type: TransactionResponseDto,
+  })
+  async createTransactionTest(
+    @Body() createTransactionDto: CreateTransactionDto,
+  ): Promise<TransactionResponseDto> {
+    return this.transactionService.createTransactionTest(createTransactionDto);
+  }
+
   @Get('by-status')
   @ApiOperation({ summary: 'Get transactions by status' })
   @ApiQuery({

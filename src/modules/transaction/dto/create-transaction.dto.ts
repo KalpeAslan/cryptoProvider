@@ -13,12 +13,12 @@ import { BaseTransactionData } from '../types/transaction.types';
 export class CreateTransactionDto implements BaseTransactionData {
   @ApiProperty({ description: 'Sender address' })
   @IsString()
-  @IsEthereumAddress()
+  // @IsEthereumAddress()
   from: string;
 
   @ApiProperty({ description: 'Recipient address' })
   @IsString()
-  @IsEthereumAddress()
+  // @IsEthereumAddress()
   to: string;
 
   @ApiProperty({ description: 'Private key for transaction signing' })

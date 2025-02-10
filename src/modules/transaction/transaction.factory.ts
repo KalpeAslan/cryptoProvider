@@ -15,4 +15,4 @@ export class TransactionFactory {
       data: data.data ?? undefined,
     });
   }
-} 
+}

@@ -10,6 +10,8 @@ import { SharedConfigModule } from '../shared/config/shared-config.module';
 import { RedisRepositoryModule } from '@/modules/shared/repository/redis/redis-repository.module';
 import { EvmGasComputingService } from './evm/evm-gas-computing.service';
 import { TransactionsCacheAdapter } from './transactions-cache.adapter';
+import { TvmService } from './tvm/tvm.service';
+import { TvmGasComputingService } from './tvm/tvm-gas-computing.service';
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { TransactionsCacheAdapter } from './transactions-cache.adapter';
     EvmGasComputingService,
     EvmService,
     TransactionProcessor,
+    TvmService,
+    TvmGasComputingService,
   ],
   exports: [TransactionService],
 })

@@ -6,11 +6,13 @@ import {
   ProcessTransactionJob,
   TransactionConfirmationJob,
   PendingTransactionCheckJob,
+  TransactionData,
 } from '../types/transaction.types';
 import { Logger, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { TransactionStatus } from '../constants/transaction.constants';
-
+import { TvmService } from '../tvm/tvm.service';
+import { NetworkType } from '@/modules/shared/types/network.types';
 type TransactionQueue = Queue<
   | ProcessTransactionJob
   | TransactionConfirmationJob
@@ -23,6 +25,7 @@ export class TransactionProcessor implements OnModuleInit {
 
   constructor(
     private readonly evmService: EvmService,
+    private readonly tvmService: TvmService,
     private readonly transactionService: TransactionService,
     @InjectQueue('transactions')
     private readonly transactionQueue: TransactionQueue,
@@ -41,7 +44,7 @@ export class TransactionProcessor implements OnModuleInit {
     );
   }
 
-  @Process('process')
+  @Process('send-transactions')
   async processTransaction(job: Job<ProcessTransactionJob>) {
     this.transactionService.processTransaction(job.data);
   }
@@ -58,24 +61,36 @@ export class TransactionProcessor implements OnModuleInit {
         }
 
         try {
-          const networkTx = await this.evmService.getTransaction(
-            tx.hash,
-            tx.network,
-          );
+          let networkTx: TransactionData | null = null;
+
+          switch (tx.network) {
+            case NetworkType.TRON:
+            case NetworkType.NILE:
+              networkTx = await this.tvmService.getTransaction(
+                tx.hash,
+                tx.network,
+              );
+              break;
+            default:
+              networkTx = await this.evmService.getTransaction(
+                tx.hash,
+                tx.network,
+              );
+              break;
+          }
 
           if (networkTx) {
-            const transactionId = (tx as unknown as { id: string }).id;
             await this.transactionService.updateTransaction({
-              id: transactionId,
+              id: tx.id!,
               data: {
                 status: TransactionStatus.CONFIRMED,
               },
             });
-
-            this.logger.log(
-              `Transaction ${transactionId} confirmed and included in blockchain`,
-            );
           }
+
+          this.logger.log(
+            `Transaction ${tx.id} confirmed and included in blockchain`,
+          );
         } catch (err) {
           const transactionId = (tx as unknown as { id: string }).id;
           this.logger.error(

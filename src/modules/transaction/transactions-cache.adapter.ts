@@ -5,7 +5,6 @@ import {
   UpdateTransactionParams,
 } from './types/transaction.types';
 import { TransactionStatus } from './constants/transaction.constants';
-import { TransactionResponseDto } from './dto/transaction-response.dto';
 
 const TRANSACTION_KEY_PREFIX = 'tx:';
 
@@ -56,15 +55,11 @@ export class TransactionsCacheAdapter {
   async getTransactionsByStatus(
     status: TransactionStatus,
   ): Promise<TransactionData[]> {
-    this.logger.log(`Getting transactions with status: ${status}`);
     const pattern = `${TRANSACTION_KEY_PREFIX}*`;
     const keys = await this.redis.getKeysByPattern(pattern);
     const transactions = await this.redis.multiGet<TransactionData>(keys);
-    this.logger.log(
-      `Found ${transactions.length} transactions with status: ${status}`,
-    );
 
-    return transactions
+    const filteredTransactions = transactions
       .filter(
         (tx): tx is TransactionData => tx !== null && tx.status === status,
       )
@@ -72,6 +67,12 @@ export class TransactionsCacheAdapter {
         ...tx,
         privateKey: '',
       }));
+
+    this.logger.log(
+      `Found ${transactions.length} transactions with status: ${status}`,
+    );
+
+    return filteredTransactions;
   }
 
   async deleteTransaction(id: string): Promise<void> {

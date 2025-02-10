@@ -31,5 +31,11 @@ export const ENV = {
     HARDHAT: {
       RPC: 'HARDHAT_RPC',
     },
+    TRON: {
+      RPC: 'TRON_RPC',
+    },
+    NILE: {
+      RPC: 'NILE_RPC',
+    },
   },
 } as const;
