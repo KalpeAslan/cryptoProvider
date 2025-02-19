@@ -6,16 +6,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3030:3030"
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_URI=redis://redis:6379
-      - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=3030
-      - NODE_ENV=production
-      - TRON_MAINNET_RPC=https://api.trongrid.io
-      - TRON_TESTNET_RPC=https://api.nileex.io/
+      - "3030:3030"     
+    env_file:
+      - .env
     depends_on:
       redis:
         condition: service_healthy
