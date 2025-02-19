@@ -1,13 +1,12 @@
-import { CustomCode, NetworkType } from '@core/shared';
+import { CustomCode, NetworkType } from '@/modules/shared';
 import { TransactionStatus } from '../constants/transaction.constants';
-
+import { TokensEnum } from '../constants/tokens.map';
 export interface BaseTransactionData {
   from: string;
   to: string;
   amount: string;
   network: NetworkType;
-  tokenAddress?: string;
-  gas?: number;
+  token?: TokensEnum;
 }
 interface TransactionParams extends BaseTransactionData {
   privateKey: string;

@@ -4,7 +4,12 @@ import { SharedConfig } from './shared.config';
 
 @Global()
 @Module({
-  imports: [ConfigModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env'],
+    }),
+  ],
   providers: [SharedConfig],
   exports: [SharedConfig],
 })

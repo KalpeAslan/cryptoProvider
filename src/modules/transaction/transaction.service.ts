@@ -10,7 +10,7 @@ import {
   UpdateTransactionParams,
 } from './types/transaction.types';
 import { TransactionsCacheAdapter } from './transactions-cache.adapter';
-import { CUSTOM_CODES, CustomCodesEnum, NetworkType } from '@core/shared';
+import { CUSTOM_CODES, CustomCodesEnum, NetworkType } from '@/modules/shared';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { TransactionStatus } from './constants/transaction.constants';
 import { Logger } from '@nestjs/common';
@@ -88,8 +88,6 @@ export class TransactionService {
           }
       }
     }
-
-    this.logger.log(`transaction: ${JSON.stringify(transaction)}`);
 
     const isPending =
       transaction.status === TransactionStatus.PENDING_CONFIRMATION ||

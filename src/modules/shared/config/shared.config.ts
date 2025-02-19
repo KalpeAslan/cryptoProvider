@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NetworkType } from '../types/network.types';
 import { AppConfig } from './config.types';
-import { ENV } from '../constants/env.constants';
 
 @Injectable()
 export class SharedConfig implements AppConfig {
@@ -10,86 +9,60 @@ export class SharedConfig implements AppConfig {
 
   get encryption() {
     return {
-      key: this.getEnvOrDefault(ENV.ENCRYPTION.KEY),
+      publicKey: this.getEnvOrThrow('ENCRYPTION_PUBLIC_KEY'),
+      privateKey: this.getEnvOrThrow('ENCRYPTION_PRIVATE_KEY'),
     };
   }
 
   get server() {
     return {
-      host: this.getEnvOrDefault(ENV.SERVER.HOST, 'localhost'),
-      port: this.getEnvAsIntOrDefault(ENV.SERVER.PORT, 3030),
+      host: this.getEnvOrDefault('SERVER_HOST', 'localhost'),
+      port: this.getEnvAsIntOrDefault('SERVER_PORT', 3030),
     };
   }
 
   get redis() {
     return {
-      url: this.getEnvOrDefault(ENV.REDIS.URL, 'redis://localhost:6379'),
+      url: this.getEnvOrThrow('REDIS_URL'),
     };
   }
 
   get networks() {
     return {
       [NetworkType.POLYGON]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.POLYGON.RPC,
-          'https://polygon-rpc.com',
-        ),
+        rpc: this.getEnvOrThrow('POLYGON_RPC'),
         chainId: 137,
       },
       [NetworkType.MUMBAI]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.MUMBAI.RPC,
-          'https://rpc-mumbai.maticvigil.com',
-        ),
+        rpc: this.getEnvOrThrow('MUMBAI_RPC'),
         chainId: 80001,
       },
       [NetworkType.BINANCE]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.BINANCE.RPC,
-          'https://bsc-dataseed.binance.org',
-        ),
+        rpc: this.getEnvOrThrow('BINANCE_RPC'),
         chainId: 56,
       },
       [NetworkType.BINANCE_TESTNET]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.BINANCE_TESTNET.RPC,
-          'https://data-seed-prebsc-1-s1.binance.org:8545',
-        ),
+        rpc: this.getEnvOrThrow('BINANCE_TESTNET_RPC'),
         chainId: 97,
       },
       [NetworkType.ETHEREUM]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.ETHEREUM.RPC,
-          'https://mainnet.infura.io/v3/YOUR-PROJECT-ID',
-        ),
+        rpc: this.getEnvOrThrow('ETH_RPC'),
         chainId: 1,
       },
       [NetworkType.ETH_TESTNET]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.ETH_TESTNET.RPC,
-          'https://sepolia.gateway.tenderly.co',
-        ),
+        rpc: this.getEnvOrThrow('ETH_TESTNET_RPC'),
         chainId: 11155111,
       },
       [NetworkType.HARDHAT]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.HARDHAT.RPC,
-          'http://127.0.0.1:8545',
-        ),
+        rpc: this.getEnvOrThrow('HARDHAT_RPC'),
         chainId: 31337,
       },
       [NetworkType.TRON]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.TRON.RPC,
-          'https://api.trongrid.io',
-        ),
+        rpc: this.getEnvOrThrow('TRON_RPC'),
         chainId: 728126428,
       },
       [NetworkType.NILE]: {
-        rpc: this.getEnvOrDefault(
-          ENV.NETWORKS.NILE.RPC,
-          'https://api.nileex.io/',
-        ),
+        rpc: this.getEnvOrThrow('NILE_RPC'),
         chainId: 1001,
       },
     };
@@ -103,6 +76,10 @@ export class SharedConfig implements AppConfig {
 
   private getEnvOrDefault(key: string, defaultValue?: string): string {
     return this.configService.get<string>(key) ?? defaultValue ?? '';
+  }
+
+  private getEnvOrThrow(key: string): string {
+    return this.configService.getOrThrow<string>(key);
   }
 
   private getEnvAsIntOrDefault(key: string, defaultValue: number): number {

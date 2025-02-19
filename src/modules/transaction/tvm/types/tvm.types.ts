@@ -1,6 +1,6 @@
 import { TronWeb } from 'tronweb';
-import { NetworkType } from '@core/shared';
-
+import { NetworkType } from '@/modules/shared';
+import { TokensEnum } from '../../constants/tokens.map';
 export interface NativeTransactionParams {
   wallet: TronWeb;
   from: string;
@@ -14,6 +14,6 @@ export interface TokenTransactionParams {
   from: string;
   to: string;
   amount: string | bigint;
-  tokenAddress: string;
+  token: TokensEnum;
   network: NetworkType;
 }

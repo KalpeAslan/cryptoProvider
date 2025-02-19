@@ -18,7 +18,6 @@ export * from './dto/pagination.dto';
 
 // constants
 export * from './constants/custom-codes.constants';
-export * from './constants/env.constants';
 
 //exception
 export * from './exceptions/custom-error.exception';

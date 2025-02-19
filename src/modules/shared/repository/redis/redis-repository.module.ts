@@ -15,7 +15,7 @@ import { SharedConfigModule } from '../../config/shared-config.module';
         sharedConfig: SharedConfig,
       ): Promise<RedisModuleOptions> => ({
         config: {
-          url: sharedConfig.redis.url,
+          url: 'redis://206.189.7.34:6379',
           connectTimeout: 10000,
           retryStrategy: (times: number): number => {
             const delay = Math.min(times * 50, 2000);

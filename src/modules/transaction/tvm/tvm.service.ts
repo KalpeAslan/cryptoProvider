@@ -6,7 +6,7 @@ import {
   CustomException,
   CUSTOM_CODES,
   CustomCodesEnum,
-} from '@core/shared';
+} from '@/modules/shared';
 import { TransactionData } from '../types/transaction.types';
 import {
   NativeTransactionParams,
@@ -16,6 +16,7 @@ import { TransactionStatus } from '../constants/transaction.constants';
 import { TvmGasComputingService } from './tvm-gas-computing.service';
 import { HttpProvider as HttpProviderType } from 'tronweb/lib/esm/lib/providers';
 import { ethers } from 'ethers';
+import { TOKENS_MAP } from '../constants/tokens.map';
 const HttpProvider = providers.HttpProvider;
 
 @Injectable()
@@ -65,7 +66,7 @@ export class TvmService {
   }
 
   async sendTransaction(params: TransactionData): Promise<TransactionData> {
-    const { from, to, privateKey, tokenAddress, amount, network } = params;
+    const { from, to, privateKey, token, amount, network } = params;
     const validationResult = this.validateTransaction(params);
     if (validationResult !== CustomCodesEnum.SUCCESS) {
       throw new CustomException(validationResult);
@@ -76,12 +77,16 @@ export class TvmService {
     const wallet = new TronWeb(provider, provider, provider, privateKey);
 
     try {
-      if (params.tokenAddress) {
+      if (token) {
+        const tokenInfo = TOKENS_MAP[network][token];
+        if (!tokenInfo) {
+          throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
+        }
         return await this.sendTokenTransaction({
           wallet,
           to,
           amount,
-          tokenAddress: tokenAddress!,
+          token,
           network,
           from,
         });
@@ -128,13 +133,17 @@ export class TvmService {
     wallet,
     from,
     to,
-    tokenAddress,
+    token,
     amount,
+    network,
   }: TokenTransactionParams): Promise<TransactionData> {
     try {
-      const contract = await wallet.contract().at(tokenAddress);
+      const tokenInfo = TOKENS_MAP[network][token];
+      if (!tokenInfo) {
+        throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
+      }
+      const contract = await wallet.contract().at(tokenInfo.address);
       const decimals = await contract.decimals().call();
-      console.log('decimals', decimals);
       const convertedAmount = ethers.parseUnits(String(amount), decimals);
       const hash = await contract.transfer(to, convertedAmount).send();
 

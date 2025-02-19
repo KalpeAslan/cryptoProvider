@@ -6,22 +6,25 @@ import { TransactionController } from './transaction.controller';
 import { TransactionService } from './transaction.service';
 import { EvmService } from './evm/evm.service';
 import { TransactionProcessor } from './queue/transaction.processor';
-import { SharedConfigModule } from '../shared/config/shared-config.module';
-import { RedisRepositoryModule } from '@/modules/shared/repository/redis/redis-repository.module';
 import { EvmGasComputingService } from './evm/evm-gas-computing.service';
 import { TransactionsCacheAdapter } from './transactions-cache.adapter';
 import { TvmService } from './tvm/tvm.service';
 import { TvmGasComputingService } from './tvm/tvm-gas-computing.service';
+import { SharedConfigModule } from '../shared/config/shared-config.module';
+import { RedisRepositoryModule } from '../shared/repository/redis/redis-repository.module';
+import { EncryptionService } from '../shared/encryption/encryption.service';
+import { ToolsController } from './tools/tools.controller';
 
 @Module({
   imports: [
-    RedisRepositoryModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         redis: {
-          host: configService.get('REDIS_HOST', 'localhost'),
-          port: configService.get('REDIS_PORT', 6379),
+          // host: configService.get('REDIS_HOST', 'localhost'),
+          // port: configService.get('REDIS_PORT', 6379),
+          host: '206.189.7.34',
+          port: 6379,
         },
       }),
       inject: [ConfigService],
@@ -46,8 +49,9 @@ import { TvmGasComputingService } from './tvm/tvm-gas-computing.service';
       },
     ]),
     SharedConfigModule,
+    RedisRepositoryModule,
   ],
-  controllers: [TransactionController],
+  controllers: [TransactionController, ToolsController],
   providers: [
     TransactionsCacheAdapter,
     TransactionService,
@@ -56,6 +60,7 @@ import { TvmGasComputingService } from './tvm/tvm-gas-computing.service';
     TransactionProcessor,
     TvmService,
     TvmGasComputingService,
+    EncryptionService,
   ],
   exports: [TransactionService],
 })

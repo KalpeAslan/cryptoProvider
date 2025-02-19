@@ -1,5 +1,6 @@
 import { ethers } from 'ethers';
-import { NetworkType } from '@core/shared';
+import { NetworkType } from '@/modules/shared';
+import { TokensEnum } from '../../constants/tokens.map';
 
 export interface NativeTransactionParams {
   wallet: ethers.Wallet;
@@ -15,7 +16,7 @@ export interface TokenTransactionParams {
   to: string;
   amount: string | bigint;
   provider: ethers.JsonRpcProvider;
-  tokenAddress: string;
+  token: TokensEnum;
   gas?: number;
   network: NetworkType;
 }

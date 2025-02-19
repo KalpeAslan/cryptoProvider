@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NetworkType, CUSTOM_CODES } from '../../shared';
 import { TransactionStatus } from '../constants/transaction.constants';
 import { TransactionData } from '../types/transaction.types';
+import { TokensEnum } from '../constants/tokens.map';
 
 export class TransactionResponseDto
   implements Omit<TransactionData, 'privateKey'>
@@ -23,8 +24,9 @@ export class TransactionResponseDto
 
   @ApiPropertyOptional({
     description: 'Token contract address for ERC20 transfers',
+    enum: TokensEnum,
   })
-  tokenAddress?: string;
+  token?: TokensEnum;
 
   @ApiProperty({
     enum: TransactionStatus,
@@ -73,6 +75,22 @@ export class TransactionResponseDto
   gas?: number;
 
   constructor(transaction: Partial<TransactionResponseDto>) {
-    Object.assign(this, transaction);
+    this.id = transaction.id as string;
+    this.from = transaction.from as string;
+    this.to = transaction.to as string;
+    this.amount = transaction.amount as string;
+    this.network = transaction.network as NetworkType;
+    this.status = transaction.status as TransactionStatus;
+    this.createdAt = transaction.createdAt as string;
+    this.updatedAt = transaction.updatedAt as string;
+    this.hash = transaction.hash as string;
+    this.code = transaction.code as number;
+    this.message = transaction.message as string;
+    this.gasUsed = transaction.gasUsed as string;
+    this.gasPrice = transaction.gasPrice as string;
+    this.chainId = transaction.chainId as number;
+    this.data = transaction.data as string;
+    this.gas = transaction.gas as number;
+    this.token = transaction.token as TokensEnum;
   }
 }

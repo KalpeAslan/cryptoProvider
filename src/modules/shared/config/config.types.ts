@@ -13,6 +13,10 @@ export interface AppConfig {
   queue: {
     name: string;
   };
+  encryption: {
+    publicKey: string;
+    privateKey: string;
+  };
 }
 
 export interface QueueConfig {

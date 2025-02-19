@@ -7,7 +7,7 @@ import {
   CustomCode,
   CUSTOM_CODES,
   CustomCodesEnum,
-} from '@core/shared';
+} from '@/modules/shared';
 import { TransactionData } from '../types/transaction.types';
 import {
   NativeTransactionParams,
@@ -17,6 +17,7 @@ import { TransactionStatus } from '../constants/transaction.constants';
 import { EvmGasComputingService } from './evm-gas-computing.service';
 import type { TransactionRequest } from 'ethers/src.ts/providers/provider';
 import { ERC20_ABI } from './evm.constants';
+import { TOKENS_MAP } from '../constants/tokens.map';
 @Injectable()
 export class EvmService {
   private readonly providers: Map<NetworkType, ethers.JsonRpcProvider>;
@@ -93,14 +94,16 @@ export class EvmService {
     const wallet = new ethers.Wallet(params.privateKey, provider);
     this.logger.log(`Wallet initialized for address: ${wallet.address}`);
 
-    if (params.tokenAddress) {
-      if (!ethers.isAddress(params.tokenAddress)) {
-        throw new CustomException(CustomCodesEnum.INVALID_ADDRESS);
+    if (params.token) {
+      const tokenInfo = TOKENS_MAP[params.network][params.token];
+
+      if (!tokenInfo) {
+        throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
       }
 
       this.logger.log(`Initiating token transfer to: ${params.to}`);
       const contract = new ethers.Contract(
-        params.tokenAddress,
+        tokenInfo.address,
         ERC20_ABI,
         provider,
       );
@@ -119,8 +122,7 @@ export class EvmService {
           to: params.to,
           amount: amountInWei,
           provider: provider as ethers.JsonRpcProvider,
-          tokenAddress: params.tokenAddress,
-          gas: params.gas,
+          token: params.token,
           network: params.network,
         });
       } catch (error) {
@@ -143,7 +145,6 @@ export class EvmService {
         to: params.to,
         amount: amountInWei,
         provider: provider as ethers.JsonRpcProvider,
-        gas: params.gas,
         network: params.network,
       });
     } catch (error) {
@@ -217,7 +218,11 @@ export class EvmService {
     params: TokenTransactionParams,
   ): Promise<TransactionData> {
     try {
-      this.logger.log(`Initializing token contract at: ${params.tokenAddress}`);
+      const tokenInfo = TOKENS_MAP[params.network][params.token];
+      if (!tokenInfo) {
+        throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
+      }
+      this.logger.log(`Initializing token contract at: ${tokenInfo.address}`);
       const nonce = await params.provider.getTransactionCount(
         params.wallet.address,
       );
@@ -229,7 +234,7 @@ export class EvmService {
           params.wallet.address,
           params.to,
           params.amount.toString(),
-          params.tokenAddress,
+          tokenInfo.address,
           params.gas,
         );
       this.logger.log(
@@ -242,7 +247,7 @@ export class EvmService {
         params.amount,
       ]);
       const tx = await params.wallet.sendTransaction({
-        to: params.tokenAddress,
+        to: tokenInfo.address,
         data,
         nonce,
         gasPrice,
@@ -267,7 +272,7 @@ export class EvmService {
         to: tx.to || '',
         amount: params.amount.toString(),
         network: params.network,
-        tokenAddress: params.tokenAddress,
+        token: params.token,
         status: TransactionStatus.CONFIRMED,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

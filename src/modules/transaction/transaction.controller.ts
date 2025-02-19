@@ -7,6 +7,7 @@ import {
   Delete,
   Query,
   ParseEnumPipe,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,11 +20,18 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { TransactionResponseDto } from './dto/transaction-response.dto';
 import { TransactionService } from './transaction.service';
 import { TransactionStatus } from './constants/transaction.constants';
+import { CreateTransactionEncryptedDto } from './dto/create-transaction-encrypted.dto';
+import { SharedConfig } from '../shared/config/shared.config';
+import { EncryptionService } from '../shared/encryption/encryption.service';
 
 @ApiTags('transactions')
 @Controller('transactions')
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService) {}
+  constructor(
+    private readonly transactionService: TransactionService,
+    private readonly sharedConfig: SharedConfig,
+    private readonly encryptionService: EncryptionService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new blockchain transaction' })
@@ -38,10 +46,31 @@ export class TransactionController {
     return this.transactionService.createTransaction(createTransactionDto);
   }
 
+  @Post('encrypted')
+  @ApiOperation({
+    summary: 'Create a new blockchain transaction',
+    description: 'Receive encrypted data ',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Transaction created successfully',
+    type: TransactionResponseDto,
+  })
+  async createTransactionEncrypted(
+    @Body() encryptedDto: CreateTransactionEncryptedDto,
+  ): Promise<TransactionResponseDto> {
+    const decryptedData = this.encryptionService.decryptData(
+      encryptedDto.data,
+      this.sharedConfig.encryption.privateKey,
+    ) as string;
+    console.log(JSON.parse(decryptedData));
+    return this.transactionService.createTransaction(JSON.parse(decryptedData));
+  }
+
   @Post('test')
   @ApiOperation({
     summary:
-      'ONLY: FOR DEVELOPER!!! Create a new blockchain transaction without queue',
+      'ONLY: FOR DEVELOPERS!!! Create a new blockchain transaction without queue',
     deprecated: true,
   })
   @ApiResponse({

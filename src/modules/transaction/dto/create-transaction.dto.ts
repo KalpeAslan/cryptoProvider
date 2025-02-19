@@ -1,14 +1,8 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsNumber,
-  IsEthereumAddress,
-  Matches,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { NetworkType } from '../../shared/types/network.types';
 import { BaseTransactionData } from '../types/transaction.types';
+import { TokensEnum } from '../constants/tokens.map';
 
 export class CreateTransactionDto implements BaseTransactionData {
   @ApiProperty({ description: 'Sender address' })
@@ -30,25 +24,19 @@ export class CreateTransactionDto implements BaseTransactionData {
     default: '1',
   })
   @IsString()
-  @Matches(/^\d+(\.\d{1,2})?$/, {
-    message: 'Amount must be a valid number string with up to 2 decimal places',
-  })
+  // @Matches(/^\d+(\.\d{1,2})?$/, {
+  //   message: 'Amount must be a valid number string with up to 2 decimal places',
+  // })
   amount: string;
 
   @ApiPropertyOptional({
-    description: 'Token contract address for ERC20 transfers',
+    description: 'Token to send',
+    enum: TokensEnum,
+    default: TokensEnum.USDT,
   })
-  @IsString()
+  @IsEnum(TokensEnum)
   @IsOptional()
-  tokenAddress?: string;
-
-  @ApiPropertyOptional({
-    description: 'Gas limit for the transaction',
-    type: Number,
-  })
-  @IsNumber()
-  @IsOptional()
-  gas?: number;
+  token?: TokensEnum;
 
   @ApiProperty({ enum: NetworkType, description: 'Blockchain network to use' })
   @IsEnum(NetworkType)
