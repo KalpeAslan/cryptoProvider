@@ -13,6 +13,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { TransactionStatus } from '../constants/transaction.constants';
 import { TvmService } from '../tvm/tvm.service';
 import { NetworkType } from '@/modules/shared/types/network.types';
+
 type TransactionQueue = Queue<
   | ProcessTransactionJob
   | TransactionConfirmationJob
