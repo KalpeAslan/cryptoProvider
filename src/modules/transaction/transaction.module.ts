@@ -10,7 +10,7 @@ import { EvmGasComputingService } from './evm/evm-gas-computing.service';
 import { TransactionsCacheAdapter } from './transactions-cache.adapter';
 import { TvmService } from './tvm/tvm.service';
 import { TvmGasComputingService } from './tvm/tvm-gas-computing.service';
-import { SolanaService } from './svm/solana.service';
+import { SolanaService } from './svm/svm.service';
 import { SharedConfigModule } from '../shared/config/shared-config.module';
 import { RedisRepositoryModule } from '../shared/repository/redis/redis-repository.module';
 import { EncryptionService } from '../shared/encryption/encryption.service';

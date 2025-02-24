@@ -128,11 +128,7 @@ export class TvmService extends AbstractOnchainService {
   ): Promise<TransactionData | null> {
     const tronWeb = new TronWeb({
       fullHost: this.providers.get(network)!.host,
-    });
-
-    if (!tronWeb) {
-      throw new CustomException(CustomCodesEnum.PROVIDER_NOT_FOUND);
-    }
+    })!;
 
     try {
       const tx = await tronWeb.trx.getTransaction(txHash);

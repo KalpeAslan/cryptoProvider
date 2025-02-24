@@ -4,7 +4,7 @@ export enum NetworkType {
   BINANCE = 'binance',
   BINANCE_TESTNET = 'binanceTestnet',
   ETHEREUM = 'ethereum',
-  ETH_TESTNET = 'sepolia',
+  // ETH_TESTNET = 'sepolia',
   HARDHAT = 'hardhat',
   TRON = 'tron',
   NILE = 'nile', // Tron testnet

@@ -16,7 +16,7 @@ import { TransactionStatus } from './constants/transaction.constants';
 import { Logger } from '@nestjs/common';
 import { TransactionFactory } from './transaction.factory';
 import { TvmService } from './tvm/tvm.service';
-import { SolanaService } from './svm/solana.service';
+import { SolanaService } from './svm/svm.service';
 
 @Injectable()
 export class TransactionService {
@@ -176,6 +176,10 @@ export class TransactionService {
         case NetworkType.NILE:
           txPromise = this.tvmService.sendTransaction(transaction);
           break;
+        case NetworkType.SOLANA:
+        case NetworkType.SOLANA_DEVNET:
+          txPromise = this.solanaService.sendTransaction(transaction);
+          break;
         default:
           txPromise = this.evmService.sendTransaction(transaction);
       }
@@ -271,6 +275,7 @@ export class TransactionService {
         transactionData.status = TransactionStatus.CONFIRMED;
         transactionData.code = confirmCode;
         transactionData.message = confirmMessage;
+        transactionData.hash = processedTx.hash;
       }
     } catch (error) {
       // Log the error and update the transaction status as failed.

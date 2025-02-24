@@ -72,10 +72,10 @@ export const CUSTOM_CODES: Record<CustomCodesEnum, CustomCode> = {
     code: CustomCodesEnum.RATE_LIMIT_EXCEEDED,
     message: 'Too many requests, rate limit exceeded',
   },
-  [CustomCodesEnum.PROVIDER_NOT_FOUND]: {
-    code: CustomCodesEnum.PROVIDER_NOT_FOUND,
-    message: 'Provider not found',
-  },
+  // [CustomCodesEnum.PROVIDER_NOT_FOUND]: {
+  //   code: CustomCodesEnum.PROVIDER_NOT_FOUND,
+  //   message: 'Provider not found',
+  // },
 
   /** Errors related to blockchain and transactions (500x) */
   [CustomCodesEnum.BLOCKCHAIN_UNAVAILABLE]: {

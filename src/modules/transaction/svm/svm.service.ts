@@ -12,8 +12,6 @@ import {
   createAssociatedTokenAccountInstruction,
   getAssociatedTokenAddress,
   createTransferInstruction,
-  TOKEN_PROGRAM_ID,
-  ASSOCIATED_TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import {
   NetworkType,
@@ -21,7 +19,6 @@ import {
   CustomException,
   CUSTOM_CODES,
   CustomCodesEnum,
-  CustomCode,
 } from '@/modules/shared';
 import { TransactionData } from '../types/transaction.types';
 import { TransactionStatus } from '../constants/transaction.constants';
@@ -60,6 +57,9 @@ export class SolanaService extends AbstractOnchainService {
 
   async sendTransaction(dto: CreateTransactionDto): Promise<TransactionData> {
     this.logger.log(`Processing transaction on network: ${dto.network}`);
+    this.logger.log(
+      `Transaction details - To: ${dto.to}, Amount: ${dto.amount}${dto.token ? `, Token: ${dto.token}` : ''}`,
+    );
 
     try {
       const isTokenTx = !!dto.token;
@@ -86,18 +86,22 @@ export class SolanaService extends AbstractOnchainService {
     const connection = this.providers.get(network)!;
 
     try {
+      this.logger.log(
+        `Initiating native SOL transfer of ${amount} SOL to ${to}`,
+      );
       // Create a keypair from the private key
-      const keypairBytes = bs58.default.decode(privateKey);
-      const fromKeypair = Keypair.fromSecretKey(keypairBytes);
+      const fromKeypair = this.generateKeypair(privateKey);
+      this.logger.log(`Sender public key: ${fromKeypair.publicKey.toString()}`);
       const toPublicKey = new PublicKey(to);
 
       // Convert amount to lamports
       const amountInLamports = Math.floor(
         parseFloat(amount) * LAMPORTS_PER_SOL,
       );
+      this.logger.log(`Amount in lamports: ${amountInLamports}`);
 
       const recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      console.log('recentBlockhash', recentBlockhash);
+      this.logger.log(`Retrieved recent blockhash: ${recentBlockhash}`);
 
       const instruction = SystemProgram.transfer({
         fromPubkey: fromKeypair.publicKey,
@@ -113,17 +117,17 @@ export class SolanaService extends AbstractOnchainService {
       transaction.sign(fromKeypair);
 
       // Send and confirm transaction
+      this.logger.log('Sending transaction for confirmation...');
       const signature = await sendAndConfirmTransaction(
         connection,
         transaction,
         [fromKeypair],
       );
+      this.logger.log(`Transaction confirmed with signature: ${signature}`);
 
       const tx = await connection.getTransaction(signature, {
         maxSupportedTransactionVersion: 0,
       });
-
-      console.log('tx', tx);
 
       const fee = tx?.meta?.fee;
       const status = tx?.meta?.err
@@ -158,22 +162,33 @@ export class SolanaService extends AbstractOnchainService {
     const connection = this.providers.get(network)!;
 
     try {
+      this.logger.log(
+        `Initiating token transfer of ${amount} ${token} to ${to}`,
+      );
       const tokenInfo = TOKENS_MAP[network][token!];
       if (!tokenInfo) {
+        this.logger.error(
+          `Token ${token} not found in token map for network ${network}`,
+        );
         throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
       }
+      this.logger.log(`Token info found: ${JSON.stringify(tokenInfo)}`);
 
       // Create keypair from private key
-      const fromKeypair = Keypair.fromSecretKey(Buffer.from(privateKey, 'hex'));
+      const fromKeypair = this.generateKeypair(privateKey);
+      this.logger.log(`Sender public key: ${fromKeypair.publicKey.toString()}`);
       const toPublicKey = new PublicKey(to);
       const mintPublicKey = new PublicKey(tokenInfo.address);
 
       // Get associated token accounts for sender and receiver
+      this.logger.log('Deriving associated token accounts...');
       const fromATA = await getAssociatedTokenAddress(
         mintPublicKey,
         fromKeypair.publicKey,
       );
       const toATA = await getAssociatedTokenAddress(mintPublicKey, toPublicKey);
+      this.logger.log(`Sender ATA: ${fromATA.toString()}`);
+      this.logger.log(`Receiver ATA: ${toATA.toString()}`);
 
       // Create transaction
       const transaction = new Transaction();
@@ -181,20 +196,23 @@ export class SolanaService extends AbstractOnchainService {
       // Check if receiver's token account exists, if not add creation instruction
       const toAccount = await connection.getAccountInfo(toATA);
       if (!toAccount) {
+        this.logger.log(
+          'Receiver token account does not exist, adding creation instruction',
+        );
         transaction.add(
           createAssociatedTokenAccountInstruction(
             fromKeypair.publicKey,
             toATA,
             toPublicKey,
             mintPublicKey,
-            TOKEN_PROGRAM_ID,
-            ASSOCIATED_TOKEN_PROGRAM_ID,
           ),
         );
       }
 
+      const decimals = tokenInfo.decimals;
+
       // Add transfer instruction
-      const amountBigInt = BigInt(amount);
+      const amountBigInt = BigInt(amount) * BigInt(10 ** decimals);
       transaction.add(
         createTransferInstruction(
           fromATA,
@@ -204,14 +222,26 @@ export class SolanaService extends AbstractOnchainService {
         ),
       );
 
+      transaction.recentBlockhash = (
+        await connection.getLatestBlockhash()
+      ).blockhash;
+
       // Send and confirm transaction
+      this.logger.log('Sending token transaction for confirmation...');
       const signature = await sendAndConfirmTransaction(
         connection,
         transaction,
         [fromKeypair],
       );
+      this.logger.log(
+        `Token transaction confirmed with signature: ${signature}`,
+      );
 
-      const { code, message } = CUSTOM_CODES[CustomCodesEnum.SUCCESS];
+      const tx = await connection.getTransaction(signature, {
+        maxSupportedTransactionVersion: 0,
+      });
+
+      const fee = tx?.meta?.fee;
 
       return {
         hash: signature,
@@ -222,11 +252,10 @@ export class SolanaService extends AbstractOnchainService {
         token,
         status: TransactionStatus.CONFIRMED,
         createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        gasPrice: '0',
+        gasPrice: fee?.toString() || '0',
         gasUsed: '0',
-        code,
-        message,
+        code: CustomCodesEnum.SUCCESS,
+        message: 'Transaction confirmed successfully',
       } as TransactionData;
     } catch (error) {
       this.logger.error(`Token transaction failed: ${error.message}`);
@@ -238,35 +267,38 @@ export class SolanaService extends AbstractOnchainService {
     signature: string,
     network: NetworkType,
   ): Promise<TransactionData | null> {
-    const connection = this.providers.get(network);
-    if (!connection) {
-      throw new CustomException(CustomCodesEnum.PROVIDER_NOT_FOUND);
-    }
+    this.logger.log(
+      `Fetching transaction details for signature: ${signature} on network: ${network}`,
+    );
+    const connection = this.providers.get(network)!;
 
     try {
-      const tx = await connection.getTransaction(signature);
+      console.log('signature', signature);
+      const tx = await connection.getTransaction(signature, {
+        maxSupportedTransactionVersion: 0,
+      });
+
       if (!tx) return null;
 
-      const { code, message } = CUSTOM_CODES[CustomCodesEnum.SUCCESS];
+      const status: TransactionStatus = this.mapTransactionStatus(
+        tx.meta?.err ? 'FAILED' : 'SUCCESS',
+      );
 
       return {
         hash: signature,
         network,
-        status: this.mapTransactionStatus(tx.meta?.err ? 'FAILED' : 'SUCCESS'),
-        from: tx.transaction.message.accountKeys[0].toString(),
-        to: tx.transaction.message.accountKeys[1].toString(),
-        amount: (
-          (tx.meta?.postBalances?.[1] ?? 0) - (tx.meta?.preBalances?.[1] ?? 0)
-        ).toString(),
-        createdAt: tx.blockTime?.toString() || new Date().toISOString(),
-        gasPrice: tx.meta?.fee.toString() || '0',
-        gasUsed: '0', // Solana doesn't have a direct gas used concept
-        code,
-        message,
+        status,
+        data: tx?.transaction.message.compiledInstructions.toString(),
+        gasUsed: tx?.meta?.fee.toString(),
       } as TransactionData;
     } catch (error) {
       this.logger.error(`Failed to get transaction: ${error.message}`);
       return null;
     }
+  }
+
+  private generateKeypair(privateKey: string): Keypair {
+    const keypairBytes = bs58.default.decode(privateKey);
+    return Keypair.fromSecretKey(keypairBytes);
   }
 }

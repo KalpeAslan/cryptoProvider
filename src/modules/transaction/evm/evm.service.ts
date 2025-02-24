@@ -255,10 +255,7 @@ export class EvmService extends AbstractOnchainService {
     txHash: string,
     network: NetworkType,
   ): Promise<TransactionData | null> {
-    const provider = this.providers.get(network);
-    if (!provider) {
-      throw new Error(`Provider not found for network ${network}`);
-    }
+    const provider = this.providers.get(network)!;
 
     const tx = await provider.getTransaction(txHash);
     if (!tx) return null;

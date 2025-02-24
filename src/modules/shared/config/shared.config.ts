@@ -49,10 +49,10 @@ export class SharedConfig implements AppConfig {
         rpc: this.getEnvOrThrow('ETH_RPC'),
         chainId: 1,
       },
-      [NetworkType.ETH_TESTNET]: {
-        rpc: this.getEnvOrThrow('ETH_TESTNET_RPC'),
-        chainId: 11155111,
-      },
+      // [NetworkType.ETH_TESTNET]: {
+      //   rpc: this.getEnvOrThrow('ETH_TESTNET_RPC'),
+      //   chainId: 11155111,
+      // },
       [NetworkType.HARDHAT]: {
         rpc: this.getEnvOrThrow('HARDHAT_RPC'),
         chainId: 31337,
