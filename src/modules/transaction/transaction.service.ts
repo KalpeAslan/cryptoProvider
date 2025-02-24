@@ -53,7 +53,7 @@ export class TransactionService {
       id: transactionId,
     };
 
-    await this.transactionsQueue.add('send-transactions', jobData);
+    this.processTransaction(jobData);
 
     return TransactionFactory.toResponseDto(transactionData, transactionId);
   }
@@ -169,57 +169,62 @@ export class TransactionService {
         return;
       }
 
-      let txPromise: Promise<TransactionData> | null = null;
+      let tx: TransactionData | null = null;
 
-      switch (transaction.network) {
-        case NetworkType.TRON:
-        case NetworkType.NILE:
-          txPromise = this.tvmService.sendTransaction(transaction);
-          break;
-        case NetworkType.SOLANA:
-        case NetworkType.SOLANA_DEVNET:
-          txPromise = this.solanaService.sendTransaction(transaction);
-          break;
-        default:
-          txPromise = this.evmService.sendTransaction(transaction);
-      }
+      try {
+        switch (transaction.network) {
+          case NetworkType.TRON:
+          case NetworkType.NILE:
+            tx = await this.tvmService.sendTransaction(transaction);
+            break;
+          case NetworkType.SOLANA:
+          case NetworkType.SOLANA_DEVNET:
+            console.log('Sending SOLANA transaction');
+            tx = await this.solanaService.sendTransaction(transaction);
+            console.log('txPromise', tx);
+            break;
+          default:
+            tx = await this.evmService.sendTransaction(transaction);
+        }
 
-      await txPromise
-        .then(async (tx) => {
-          if (tx.status === TransactionStatus.CONFIRMED) {
-            const { code, message } =
-              CUSTOM_CODES[CustomCodesEnum.TRANSACTION_CONFIRMED];
-            await this.transactionsCache.updateTransaction({
-              id,
-              data: {
-                status: TransactionStatus.CONFIRMED,
-                code,
-                message,
-              },
-            });
-          }
-        })
-        .catch((error) => {
-          this.logger.error(
-            `Transaction processing failed: ${error.message}`,
-            error.stack,
-          );
-
-          this.transactionsCache.updateTransaction({
+        console.log('tx', tx);
+        if (tx.status === TransactionStatus.CONFIRMED) {
+          const { code, message } =
+            CUSTOM_CODES[CustomCodesEnum.TRANSACTION_CONFIRMED];
+          await this.transactionsCache.updateTransaction({
             id,
             data: {
-              status: TransactionStatus.FAILED,
-              message: error.message,
-              code: error.code,
+              status: TransactionStatus.CONFIRMED,
+              code,
+              message,
             },
-            useTTL: true,
           });
-          throw error;
+        }
+      } catch (error) {
+        this.logger.error(
+          `Transaction processing failed: ${error.message}`,
+          error.stack,
+        );
+
+        this.transactionsCache.updateTransaction({
+          id,
+          data: {
+            status: TransactionStatus.FAILED,
+            message: error.message,
+            code: error.code,
+          },
+          useTTL: true,
         });
+        throw error;
+      }
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
+      this.logger.error(
+        `Transaction processing failed: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -252,6 +257,7 @@ export class TransactionService {
           break;
         case NetworkType.SOLANA:
         case NetworkType.SOLANA_DEVNET:
+          this.logger.log('Sending SOLANA transaction');
           processedTx =
             await this.solanaService.sendTransaction(transactionData);
           break;

@@ -26,16 +26,4 @@ export abstract class AbstractOnchainService {
     txHash: string,
     network: NetworkType,
   ): Promise<TransactionData | null>;
-
-  protected mapTransactionStatus(status: string): TransactionStatus {
-    switch (status) {
-      case 'SUCCESS':
-      case 'CONFIRMED':
-        return TransactionStatus.CONFIRMED;
-      case 'FAILED':
-        return TransactionStatus.FAILED;
-      default:
-        return TransactionStatus.PENDING_CONFIRMATION;
-    }
-  }
 }

@@ -46,10 +46,10 @@ export class TransactionProcessor implements OnModuleInit {
     );
   }
 
-  @Process('send-transactions')
-  async processTransaction(job: Job<ProcessTransactionJob>) {
-    this.transactionService.processTransaction(job.data);
-  }
+  // @Process('send-transactions')
+  // async processTransaction(job: Job<ProcessTransactionJob>) {
+  //   this.transactionService.processTransaction(job.data);
+  // }
 
   @Process('check-pending-transactions')
   async checkPendingTransactions(_: Job<PendingTransactionCheckJob>) {
@@ -58,7 +58,6 @@ export class TransactionProcessor implements OnModuleInit {
         await this.transactionService.getPendingTransactions();
 
       for (const tx of pendingTransactions) {
-        console.log('tx', tx);
         if (!tx?.hash) {
           continue;
         }

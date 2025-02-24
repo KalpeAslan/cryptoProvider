@@ -128,6 +128,7 @@ export class SolanaService extends AbstractOnchainService {
       const tx = await connection.getTransaction(signature, {
         maxSupportedTransactionVersion: 0,
       });
+      console.log('tx', tx);
 
       const fee = tx?.meta?.fee;
       const status = tx?.meta?.err
@@ -137,6 +138,7 @@ export class SolanaService extends AbstractOnchainService {
       const { code, message } = CUSTOM_CODES[status];
 
       return {
+        id: signature,
         hash: signature,
         from: fromKeypair.publicKey.toString(),
         to,
@@ -145,6 +147,7 @@ export class SolanaService extends AbstractOnchainService {
         status: TransactionStatus.CONFIRMED,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        data: tx?.transaction.message.compiledInstructions.toString(),
         code,
         gasPrice: fee?.toString() || '0',
         message,
@@ -280,9 +283,9 @@ export class SolanaService extends AbstractOnchainService {
 
       if (!tx) return null;
 
-      const status: TransactionStatus = this.mapTransactionStatus(
-        tx.meta?.err ? 'FAILED' : 'SUCCESS',
-      );
+      const status: TransactionStatus = tx.meta?.err
+        ? TransactionStatus.FAILED
+        : TransactionStatus.CONFIRMED;
 
       return {
         hash: signature,

@@ -137,7 +137,7 @@ export class TvmService extends AbstractOnchainService {
       return {
         hash: txHash,
         network,
-        status: this.mapTransactionStatus(tx.ret[0].contractRet),
+        status: TransactionStatus.CONFIRMED,
         from: tronWeb.address.fromHex(
           tx.raw_data.contract[0].parameter.value.owner_address,
         ),
