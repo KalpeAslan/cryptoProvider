@@ -10,6 +10,7 @@ import { EvmGasComputingService } from './evm/evm-gas-computing.service';
 import { TransactionsCacheAdapter } from './transactions-cache.adapter';
 import { TvmService } from './tvm/tvm.service';
 import { TvmGasComputingService } from './tvm/tvm-gas-computing.service';
+import { SolanaService } from './svm/solana.service';
 import { SharedConfigModule } from '../shared/config/shared-config.module';
 import { RedisRepositoryModule } from '../shared/repository/redis/redis-repository.module';
 import { EncryptionService } from '../shared/encryption/encryption.service';
@@ -21,10 +22,8 @@ import { ToolsController } from './tools/tools.controller';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         redis: {
-          // host: configService.get('REDIS_HOST', 'localhost'),
-          // port: configService.get('REDIS_PORT', 6379),
-          host: '206.189.7.34',
-          port: 6379,
+          host: configService.get('REDIS_HOST', 'localhost'),
+          port: configService.get('REDIS_PORT', 6379),
         },
       }),
       inject: [ConfigService],
@@ -60,6 +59,7 @@ import { ToolsController } from './tools/tools.controller';
     TransactionProcessor,
     TvmService,
     TvmGasComputingService,
+    SolanaService,
     EncryptionService,
   ],
   exports: [TransactionService],

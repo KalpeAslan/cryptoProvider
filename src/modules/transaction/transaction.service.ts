@@ -16,6 +16,7 @@ import { TransactionStatus } from './constants/transaction.constants';
 import { Logger } from '@nestjs/common';
 import { TransactionFactory } from './transaction.factory';
 import { TvmService } from './tvm/tvm.service';
+import { SolanaService } from './svm/solana.service';
 
 @Injectable()
 export class TransactionService {
@@ -25,6 +26,7 @@ export class TransactionService {
     @InjectQueue('transactions') private readonly transactionsQueue: Queue,
     private readonly evmService: EvmService,
     private readonly tvmService: TvmService,
+    private readonly solanaService: SolanaService,
     private readonly transactionsCache: TransactionsCacheAdapter,
   ) {}
 
@@ -73,19 +75,26 @@ export class TransactionService {
             transaction.network,
           );
           break;
+        case NetworkType.SOLANA:
+        case NetworkType.SOLANA_DEVNET:
+          onChainData = await this.solanaService.getTransaction(
+            transaction.hash,
+            transaction.network,
+          );
+          break;
         default:
           onChainData = await this.evmService.getTransaction(
             transaction.hash,
             transaction.network,
           );
-          if (onChainData) {
-            Object.assign(transaction, {
-              gasUsed: onChainData.gasUsed,
-              gasPrice: onChainData.gasPrice,
-              chainId: onChainData.chainId,
-              data: onChainData.data,
-            });
-          }
+      }
+      if (onChainData) {
+        Object.assign(transaction, {
+          gasUsed: onChainData.gasUsed,
+          gasPrice: onChainData.gasPrice,
+          chainId: onChainData.chainId,
+          data: onChainData.data,
+        });
       }
     }
 
@@ -236,6 +245,11 @@ export class TransactionService {
         case NetworkType.TRON:
         case NetworkType.NILE:
           processedTx = await this.tvmService.sendTransaction(transactionData);
+          break;
+        case NetworkType.SOLANA:
+        case NetworkType.SOLANA_DEVNET:
+          processedTx =
+            await this.solanaService.sendTransaction(transactionData);
           break;
         default:
           processedTx = await this.evmService.sendTransaction(transactionData);

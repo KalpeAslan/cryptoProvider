@@ -86,4 +86,20 @@ export const TOKENS_MAP: TokensMap = {
       address: '0x0000000000000000000000000000000000000000',
     },
   },
+  [NetworkType.SOLANA]: {
+    [TokensEnum.USDC]: {
+      address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // Solana USDC mainnet
+    },
+    [TokensEnum.USDT]: {
+      address: 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB', // Solana USDT mainnet
+    },
+  },
+  [NetworkType.SOLANA_DEVNET]: {
+    [TokensEnum.USDC]: {
+      address: '0x0000000000000000000000000000000000000000', // Replace with actual devnet address
+    },
+    [TokensEnum.USDT]: {
+      address: '0x0000000000000000000000000000000000000000', // Replace with actual devnet address
+    },
+  },
 };

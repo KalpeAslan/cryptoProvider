@@ -65,6 +65,14 @@ export class SharedConfig implements AppConfig {
         rpc: this.getEnvOrThrow('NILE_RPC'),
         chainId: 1001,
       },
+      [NetworkType.SOLANA]: {
+        rpc: this.getEnvOrThrow('SOLANA_RPC'),
+        chainId: 101, // Solana mainnet
+      },
+      [NetworkType.SOLANA_DEVNET]: {
+        rpc: this.getEnvOrThrow('SOLANA_DEVNET_RPC'),
+        chainId: 103, // Solana devnet
+      },
     };
   }
 

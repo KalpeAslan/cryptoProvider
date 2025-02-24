@@ -8,6 +8,8 @@ export enum NetworkType {
   HARDHAT = 'hardhat',
   TRON = 'tron',
   NILE = 'nile', // Tron testnet
+  SOLANA = 'solana',
+  SOLANA_DEVNET = 'solanaDevnet',
 }
 
 export interface NetworkConfig {
