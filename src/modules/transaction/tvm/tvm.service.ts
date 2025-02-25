@@ -8,39 +8,30 @@ import {
   CustomCodesEnum,
 } from '@/modules/shared';
 import { TransactionData } from '../types/transaction.types';
-import {
-  NativeTransactionParams,
-  TokenTransactionParams,
-} from './types/tvm.types';
 import { TransactionStatus } from '../constants/transaction.constants';
 import { TvmGasComputingService } from './tvm-gas-computing.service';
 import { HttpProvider as HttpProviderType } from 'tronweb/lib/esm/lib/providers';
 import { ethers } from 'ethers';
 import { TOKENS_MAP } from '../constants/tokens.map';
+import { AbstractOnchainService } from '../base/abstract-onchain.service';
+import { CreateTransactionDto } from '../dto/create-transaction.dto';
 const HttpProvider = providers.HttpProvider;
 
 @Injectable()
-export class TvmService {
-  private readonly providers: Map<NetworkType, HttpProviderType>;
+export class TvmService extends AbstractOnchainService {
   private readonly logger = new Logger(TvmService.name);
+  private readonly providers: Map<NetworkType, HttpProviderType>;
 
   constructor(
     private readonly sharedConfig: SharedConfig,
     private readonly tvmGasComputingService: TvmGasComputingService,
   ) {
+    super();
     this.providers = new Map();
-    this.initializeTronWeb();
+    this.initializeProviders();
   }
 
-  private initializeTronWeb(): void {
-    const tronWeb = new TronWeb({
-      fullHost: this.sharedConfig.networks.tron.rpc,
-    });
-
-    const nileWeb = new TronWeb({
-      fullHost: this.sharedConfig.networks.nile.rpc,
-    });
-
+  protected initializeProviders(): void {
     this.providers.set(
       NetworkType.TRON,
       new HttpProvider(this.sharedConfig.networks.tron.rpc),
@@ -52,66 +43,30 @@ export class TvmService {
     this.logger.log(`Initialized TronWeb for network: ${NetworkType.TRON}`);
   }
 
-  validateTransaction(params: TransactionData): CustomCodesEnum {
-    if (!params.network) {
-      return CustomCodesEnum.INVALID_REQUEST;
-    }
-
-    const tronWeb = this.providers.get(params.network);
-    if (!tronWeb) {
-      return CustomCodesEnum.PROVIDER_NOT_FOUND;
-    }
-
-    return CustomCodesEnum.SUCCESS;
-  }
-
-  async sendTransaction(params: TransactionData): Promise<TransactionData> {
-    const { from, to, privateKey, token, amount, network } = params;
-    const validationResult = this.validateTransaction(params);
-    if (validationResult !== CustomCodesEnum.SUCCESS) {
-      throw new CustomException(validationResult);
-    }
-
-    const provider = this.providers.get(network)!;
-
-    const wallet = new TronWeb(provider, provider, provider, privateKey);
+  async sendTransaction(dto: TransactionData): Promise<TransactionData> {
+    const isTokenTx = !!dto.token;
 
     try {
-      if (token) {
-        const tokenInfo = TOKENS_MAP[network][token];
-        if (!tokenInfo) {
-          throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
-        }
-        return await this.sendTokenTransaction({
-          wallet,
-          to,
-          amount,
-          token,
-          network,
-          from,
-        });
+      if (isTokenTx) {
+        return await this.sendTokenTransaction(dto);
       }
-      return await this.sendNativeTransaction({
-        wallet,
-        to,
-        amount,
-        network,
-        from,
-      });
+      return await this.sendNativeTransaction(dto);
     } catch (error) {
       this.logger.error(`Failed to send transaction: ${error.message}`);
       throw new CustomException(CustomCodesEnum.TRANSACTION_FAILED);
     }
   }
 
-  private async sendNativeTransaction({
-    wallet,
-    to,
-    amount,
-    from,
-  }: NativeTransactionParams): Promise<TransactionData> {
+  async sendNativeTransaction(
+    dto: CreateTransactionDto,
+  ): Promise<TransactionData> {
+    const { from, to, privateKey, amount, network } = dto;
+    const provider = this.providers.get(network)!;
+
+    const wallet = new TronWeb(provider, provider, provider, privateKey);
+
     try {
-      const convertedAmount = ethers.parseUnits(String(amount), 6);
+      const convertedAmount = ethers.parseUnits(String(dto), 6);
       const tx = await wallet.trx.sendTransaction(to, Number(convertedAmount));
       return {
         hash: tx.txid,
@@ -129,19 +84,23 @@ export class TvmService {
     }
   }
 
-  private async sendTokenTransaction({
-    wallet,
-    from,
-    to,
-    token,
-    amount,
-    network,
-  }: TokenTransactionParams): Promise<TransactionData> {
+  async sendTokenTransaction(
+    dto: CreateTransactionDto,
+  ): Promise<TransactionData> {
+    const { from, to, privateKey, token, amount, network } = dto;
+
+    const provider = this.providers.get(network)!;
+
+    const wallet = new TronWeb(provider, provider, provider, privateKey);
+
+    const tokenInfo = TOKENS_MAP[network][token!];
+
+    if (!tokenInfo) {
+      throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
+    }
+
     try {
-      const tokenInfo = TOKENS_MAP[network][token];
-      if (!tokenInfo) {
-        throw new CustomException(CustomCodesEnum.INVALID_REQUEST);
-      }
+      const tokenInfo = TOKENS_MAP[network][token!];
       const contract = await wallet.contract().at(tokenInfo.address);
       const decimals = await contract.decimals().call();
       const convertedAmount = ethers.parseUnits(String(amount), decimals);
@@ -169,11 +128,7 @@ export class TvmService {
   ): Promise<TransactionData | null> {
     const tronWeb = new TronWeb({
       fullHost: this.providers.get(network)!.host,
-    });
-
-    if (!tronWeb) {
-      throw new CustomException(CustomCodesEnum.PROVIDER_NOT_FOUND);
-    }
+    })!;
 
     try {
       const tx = await tronWeb.trx.getTransaction(txHash);
@@ -182,7 +137,7 @@ export class TvmService {
       return {
         hash: txHash,
         network,
-        status: this.mapTransactionStatus(tx.ret[0].contractRet),
+        status: TransactionStatus.CONFIRMED,
         from: tronWeb.address.fromHex(
           tx.raw_data.contract[0].parameter.value.owner_address,
         ),
@@ -200,17 +155,6 @@ export class TvmService {
     } catch (error) {
       this.logger.error(`Failed to get transaction: ${error.message}`);
       return null;
-    }
-  }
-
-  private mapTransactionStatus(status: string): TransactionStatus {
-    switch (status) {
-      case 'SUCCESS':
-        return TransactionStatus.CONFIRMED;
-      case 'FAILED':
-        return TransactionStatus.FAILED;
-      default:
-        return TransactionStatus.PENDING_CONFIRMATION;
     }
   }
 }

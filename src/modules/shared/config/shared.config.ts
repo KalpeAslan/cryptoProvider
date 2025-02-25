@@ -49,10 +49,10 @@ export class SharedConfig implements AppConfig {
         rpc: this.getEnvOrThrow('ETH_RPC'),
         chainId: 1,
       },
-      [NetworkType.ETH_TESTNET]: {
-        rpc: this.getEnvOrThrow('ETH_TESTNET_RPC'),
-        chainId: 11155111,
-      },
+      // [NetworkType.ETH_TESTNET]: {
+      //   rpc: this.getEnvOrThrow('ETH_TESTNET_RPC'),
+      //   chainId: 11155111,
+      // },
       [NetworkType.HARDHAT]: {
         rpc: this.getEnvOrThrow('HARDHAT_RPC'),
         chainId: 31337,
@@ -64,6 +64,14 @@ export class SharedConfig implements AppConfig {
       [NetworkType.NILE]: {
         rpc: this.getEnvOrThrow('NILE_RPC'),
         chainId: 1001,
+      },
+      [NetworkType.SOLANA]: {
+        rpc: this.getEnvOrThrow('SOLANA_RPC'),
+        chainId: 101, // Solana mainnet
+      },
+      [NetworkType.SOLANA_DEVNET]: {
+        rpc: this.getEnvOrThrow('SOLANA_DEVNET_RPC'),
+        chainId: 103, // Solana devnet
       },
     };
   }

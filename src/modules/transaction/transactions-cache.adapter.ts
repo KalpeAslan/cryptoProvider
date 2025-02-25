@@ -60,16 +60,16 @@ export class TransactionsCacheAdapter {
     const transactions = await this.redis.multiGet<TransactionData>(keys);
 
     const filteredTransactions = transactions
-      .filter(
-        (tx): tx is TransactionData => tx !== null && tx.status === status,
-      )
+      .filter((tx): tx is TransactionData => {
+        return tx?.status === status;
+      })
       .map((tx) => ({
         ...tx,
         privateKey: '',
       }));
 
     this.logger.log(
-      `Found ${transactions.length} transactions with status: ${status}`,
+      `Found ${filteredTransactions.length} transactions with status: ${status}`,
     );
 
     return filteredTransactions;

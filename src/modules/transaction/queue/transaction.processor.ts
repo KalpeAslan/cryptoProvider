@@ -13,6 +13,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { TransactionStatus } from '../constants/transaction.constants';
 import { TvmService } from '../tvm/tvm.service';
 import { NetworkType } from '@/modules/shared/types/network.types';
+import { SolanaService } from '../svm/svm.service';
 type TransactionQueue = Queue<
   | ProcessTransactionJob
   | TransactionConfirmationJob
@@ -26,6 +27,7 @@ export class TransactionProcessor implements OnModuleInit {
   constructor(
     private readonly evmService: EvmService,
     private readonly tvmService: TvmService,
+    private readonly svmService: SolanaService,
     private readonly transactionService: TransactionService,
     @InjectQueue('transactions')
     private readonly transactionQueue: TransactionQueue,
@@ -44,10 +46,10 @@ export class TransactionProcessor implements OnModuleInit {
     );
   }
 
-  @Process('send-transactions')
-  async processTransaction(job: Job<ProcessTransactionJob>) {
-    this.transactionService.processTransaction(job.data);
-  }
+  // @Process('send-transactions')
+  // async processTransaction(job: Job<ProcessTransactionJob>) {
+  //   this.transactionService.processTransaction(job.data);
+  // }
 
   @Process('check-pending-transactions')
   async checkPendingTransactions(_: Job<PendingTransactionCheckJob>) {
@@ -67,6 +69,14 @@ export class TransactionProcessor implements OnModuleInit {
             case NetworkType.TRON:
             case NetworkType.NILE:
               networkTx = await this.tvmService.getTransaction(
+                tx.hash,
+                tx.network,
+              );
+              break;
+            case NetworkType.SOLANA:
+            case NetworkType.SOLANA_DEVNET:
+              console.log('tx.hash', tx.hash);
+              networkTx = await this.svmService.getTransaction(
                 tx.hash,
                 tx.network,
               );

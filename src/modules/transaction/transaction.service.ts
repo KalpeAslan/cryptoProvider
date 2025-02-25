@@ -16,6 +16,7 @@ import { TransactionStatus } from './constants/transaction.constants';
 import { Logger } from '@nestjs/common';
 import { TransactionFactory } from './transaction.factory';
 import { TvmService } from './tvm/tvm.service';
+import { SolanaService } from './svm/svm.service';
 
 @Injectable()
 export class TransactionService {
@@ -25,6 +26,7 @@ export class TransactionService {
     @InjectQueue('transactions') private readonly transactionsQueue: Queue,
     private readonly evmService: EvmService,
     private readonly tvmService: TvmService,
+    private readonly solanaService: SolanaService,
     private readonly transactionsCache: TransactionsCacheAdapter,
   ) {}
 
@@ -51,7 +53,7 @@ export class TransactionService {
       id: transactionId,
     };
 
-    await this.transactionsQueue.add('send-transactions', jobData);
+    this.processTransaction(jobData);
 
     return TransactionFactory.toResponseDto(transactionData, transactionId);
   }
@@ -73,19 +75,26 @@ export class TransactionService {
             transaction.network,
           );
           break;
+        case NetworkType.SOLANA:
+        case NetworkType.SOLANA_DEVNET:
+          onChainData = await this.solanaService.getTransaction(
+            transaction.hash,
+            transaction.network,
+          );
+          break;
         default:
           onChainData = await this.evmService.getTransaction(
             transaction.hash,
             transaction.network,
           );
-          if (onChainData) {
-            Object.assign(transaction, {
-              gasUsed: onChainData.gasUsed,
-              gasPrice: onChainData.gasPrice,
-              chainId: onChainData.chainId,
-              data: onChainData.data,
-            });
-          }
+      }
+      if (onChainData) {
+        Object.assign(transaction, {
+          gasUsed: onChainData.gasUsed,
+          gasPrice: onChainData.gasPrice,
+          chainId: onChainData.chainId,
+          data: onChainData.data,
+        });
       }
     }
 
@@ -160,53 +169,62 @@ export class TransactionService {
         return;
       }
 
-      let txPromise: Promise<TransactionData> | null = null;
+      let tx: TransactionData | null = null;
 
-      switch (transaction.network) {
-        case NetworkType.TRON:
-        case NetworkType.NILE:
-          txPromise = this.tvmService.sendTransaction(transaction);
-          break;
-        default:
-          txPromise = this.evmService.sendTransaction(transaction);
-      }
+      try {
+        switch (transaction.network) {
+          case NetworkType.TRON:
+          case NetworkType.NILE:
+            tx = await this.tvmService.sendTransaction(transaction);
+            break;
+          case NetworkType.SOLANA:
+          case NetworkType.SOLANA_DEVNET:
+            console.log('Sending SOLANA transaction');
+            tx = await this.solanaService.sendTransaction(transaction);
+            console.log('txPromise', tx);
+            break;
+          default:
+            tx = await this.evmService.sendTransaction(transaction);
+        }
 
-      await txPromise
-        .then(async (tx) => {
-          if (tx.status === TransactionStatus.CONFIRMED) {
-            const { code, message } =
-              CUSTOM_CODES[CustomCodesEnum.TRANSACTION_CONFIRMED];
-            await this.transactionsCache.updateTransaction({
-              id,
-              data: {
-                status: TransactionStatus.CONFIRMED,
-                code,
-                message,
-              },
-            });
-          }
-        })
-        .catch((error) => {
-          this.logger.error(
-            `Transaction processing failed: ${error.message}`,
-            error.stack,
-          );
-
-          this.transactionsCache.updateTransaction({
+        console.log('tx', tx);
+        if (tx.status === TransactionStatus.CONFIRMED) {
+          const { code, message } =
+            CUSTOM_CODES[CustomCodesEnum.TRANSACTION_CONFIRMED];
+          await this.transactionsCache.updateTransaction({
             id,
             data: {
-              status: TransactionStatus.FAILED,
-              message: error.message,
-              code: error.code,
+              status: TransactionStatus.CONFIRMED,
+              code,
+              message,
             },
-            useTTL: true,
           });
-          throw error;
+        }
+      } catch (error) {
+        this.logger.error(
+          `Transaction processing failed: ${error.message}`,
+          error.stack,
+        );
+
+        this.transactionsCache.updateTransaction({
+          id,
+          data: {
+            status: TransactionStatus.FAILED,
+            message: error.message,
+            code: error.code,
+          },
+          useTTL: true,
         });
+        throw error;
+      }
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
+      this.logger.error(
+        `Transaction processing failed: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
@@ -237,6 +255,12 @@ export class TransactionService {
         case NetworkType.NILE:
           processedTx = await this.tvmService.sendTransaction(transactionData);
           break;
+        case NetworkType.SOLANA:
+        case NetworkType.SOLANA_DEVNET:
+          this.logger.log('Sending SOLANA transaction');
+          processedTx =
+            await this.solanaService.sendTransaction(transactionData);
+          break;
         default:
           processedTx = await this.evmService.sendTransaction(transactionData);
       }
@@ -257,6 +281,7 @@ export class TransactionService {
         transactionData.status = TransactionStatus.CONFIRMED;
         transactionData.code = confirmCode;
         transactionData.message = confirmMessage;
+        transactionData.hash = processedTx.hash;
       }
     } catch (error) {
       // Log the error and update the transaction status as failed.
